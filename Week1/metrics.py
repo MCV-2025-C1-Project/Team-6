@@ -1,4 +1,14 @@
+"""
+Implementation of the MAP@k metric explained at the following website: 
+https://www.evidentlyai.com/ranking-metrics/mean-average-precision-map
+
+"""
+
 def precision(predictions, truths):
+    
+    """
+    Calculates Precision.
+    """
 
     current_precisions = 0
     for prediction in predictions:
@@ -9,6 +19,11 @@ def precision(predictions, truths):
 
 
 def average_precision(predictions, truths):
+
+    """
+    Calculates Average Precision (AP).
+    """
+
     avg_precision = 0
     relevant_items = 0
     for i, prediction in enumerate(predictions):
@@ -20,6 +35,11 @@ def average_precision(predictions, truths):
     return avg_precision / len(truths)
 
 def mean_average_precision(all_predictions, all_truths, k=10):
+
+    """
+    Calculates Mean Average Precision at k (MAP@k).
+    """
+
     map_score = 0
     for predictions, truths in zip(all_predictions, all_truths):
         if len(predictions) > k:
