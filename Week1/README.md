@@ -15,3 +15,19 @@
    - Submit top results for each query (list of lists, pkl format)  
    - Best two methods
      
+
+## Quick Setup
+
+Clone the repository
+
+```bash
+git clone git@github.com:MCV-2025-C1-Project/Team-6.git
+cd Team-6
+```
+
+Create the environment
+
+```bash
+conda env create -f environment.yml
+conda activate group6_env
+```
