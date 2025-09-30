@@ -13,4 +13,5 @@
 
 4. **Blind test (QST1)**  
    - Submit top results for each query (list of lists, pkl format)  
-   - Best two methods  
+   - Best two methods
+     
