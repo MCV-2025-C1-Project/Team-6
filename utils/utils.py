@@ -96,6 +96,24 @@ def plot_histogram(
 
     if outfile:
         fig.savefig(outfile, dpi=200)
-        
+
     plt.show()
     return outfile
+
+
+if __name__=="__main__":
+    # Example
+    # Create test data
+    random.seed(42)
+    data = [random.gauss(0, 1) for _ in range(70)] + \
+            [random.gauss(3, 0.8) for _ in range(30)]
+
+    path = plot_histogram(
+        data,
+        n_bins=10,
+        probs=False,
+        data_range = (0,1),
+        title="Example Histogram",
+        xlabel="Value",
+        outfile=None
+    )
