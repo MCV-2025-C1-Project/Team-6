@@ -1,19 +1,34 @@
 import numpy as np
 
 def euclidean_distance(a, b):
+	"""
+	Compute the Euclidean (L2) distance between two vectors.
+	"""
     return np.sqrt(np.sum((a - b) ** 2))
 
 def l1_distance(a, b):
-    return np.sum(np.abs(a - b))
+    """
+	Compute the Manhattan (L1) distance between two vectors.
+	"""
+	return np.sum(np.abs(a - b))
 
 def chi2_distance(a, b):
-    return np.sum(((a - b) ** 2) / (a + b))
+    """
+	Compute the Chi-square distance between two vectors.
+	"""
+	return np.sum(((a - b) ** 2) / (a + b))
 
 def histogram_intersection_distance(a, b):
-    return np.sum(np.minimum(a,b))
+    """
+	Compute the histogram intersection similarity.
+	"""
+	return np.sum(np.minimum(a,b))
 
 def hellinger_kernel_distance(a, b):
-    return np.sum(np.sqrt(a * b))
+    """
+	Compute the Hellinger kernel similarity.
+	"""
+	return np.sum(np.sqrt(a * b))
 
 def calculate_distance(a, b, metric:str) -> float:
     """
