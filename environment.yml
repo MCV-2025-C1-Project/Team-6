@@ -1,4 +1,4 @@
-name: group6_env
+name: team6-env
 channels:
   - defaults
   - conda-forge
@@ -8,3 +8,4 @@ dependencies:
   - opencv
   - matplotlib
   - pip
+  - ruff

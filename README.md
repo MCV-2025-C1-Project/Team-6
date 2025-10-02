@@ -20,7 +20,7 @@ Create and activate the environment:
 
 ```bash
 conda env create -f environment.yml
-conda activate group6_env
+conda activate team6-env
 ```
 
 <p>If you need it, install <a href="https://www.anaconda.com/docs/getting-started/miniconda/install">Miniconda</a>.</p>
