@@ -1,4 +1,4 @@
-"This script contains utils used throughout the project."
+"This script contains histogram functions to use throughout the project."
 import random
 import numbers
 from typing import Iterable, Tuple, Optional
@@ -129,7 +129,8 @@ def equalize_histogram(probs: np.ndarray = None):
     for idx in range(num_bins):
         cdf += probs[idx]
         t = round((num_bins - 1) * cdf)
-        if t < 0: t = 0
+        if t < 0:
+            t = 0
         if t > num_bins - 1: 
             t = num_bins - 1
 
