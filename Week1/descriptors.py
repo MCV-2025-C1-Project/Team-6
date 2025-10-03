@@ -98,6 +98,10 @@ def compute_descriptors(imgs: Union[np.ndarray, List[np.ndarray]],
         descs = [ _desc_rgb(im, R_bins, G_bins, B_bins) for im in img_list]
     
     # Much stronger, H and S capture color indpendent of brightness
+
+    # HSV without quadrants should work best with chi-squared metric
+    # HSV with quadrants should work best with chi-squared but weighted ((global 0.5; each 2×2 cell 0.125))
+    # If stron illumantion change use Bhattacharyya
     elif method == "hsv":
         H_bins = params.get("H_bins", 32)
         S_bins = params.get("S_bins", 32)
