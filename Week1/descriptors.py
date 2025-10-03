@@ -7,11 +7,8 @@ from color_spaces import rgb_to_hsv
 from histogram import histogram
 from io_utils import write_pickle, read_images
 
-    
-# TODO: Create the descriptors. It can be extended and can be done by using histogram.py
 
 # Helpers
-
 def _desc_rgb(
     rgb: np.ndarray,
     R_bins: int = 32,
