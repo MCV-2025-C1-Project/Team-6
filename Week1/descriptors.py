@@ -25,9 +25,9 @@ def _desc_rgb(
     B = rgb[..., 2]
 
     # Use pdf insetad of counts
-    pR = histogram(R, n_bins=R_bins, )
-    pG = histogram(G, n_bins=G_bins, )
-    pB = histogram(B, n_bins=B_bins, )
+    pR = histogram(R, n_bins=R_bins, ) / 3
+    pG = histogram(G, n_bins=G_bins, ) / 3
+    pB = histogram(B, n_bins=B_bins, ) / 3
 
     return np.concatenate([pR, pG, pB], axis=0).astype(np.float32)
 
@@ -54,14 +54,9 @@ def _desc_hsv(
         hH = histogram(H, n_bins=H_bins, )
         hS = histogram(S, n_bins=S_bins, )
 
-        desc_parts = [hH.astype(np.float32), hS.astype(np.float32)]
-
-        if use_value:
-            hV = histogram(V, n_bins=V_bins, )
-            desc_parts.append(hV.astype(np.float32))
-        
+        desc_parts = [hH.astype(np.float32) / 2, hS.astype(np.float32) / 2]
         return np.concatenate(desc_parts, axis=0)
-
+        
     hsv_baseline = _compute_hist(hsv)
 
     if quadrants:
@@ -108,7 +103,7 @@ def _desc_hs_rgb(
         pG = histogram(G, n_bins=G_bins, )
         pB = histogram(B, n_bins=B_bins, )
 
-        desc_parts = [hH.astype(np.float32), hS.astype(np.float32), pR.astype(np.float32), pG.astype(np.float32), pB.astype(np.float32)]
+        desc_parts = [hH.astype(np.float32) / 5, hS.astype(np.float32) / 5, pR.astype(np.float32) / 5, pG.astype(np.float32), pB.astype(np.float32)]
 
         
         
