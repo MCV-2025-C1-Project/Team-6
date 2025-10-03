@@ -129,7 +129,7 @@ def compute_descriptors(imgs: Union[np.ndarray, List[np.ndarray]],
         
     
 if __name__=="__main__":
-    imgs = read_images(Path.cwd() / "Week1" / "BBDD", 5)
+    imgs = read_images(Path.cwd() / "Week1" / "BBDD")
     bbdd_desc = compute_descriptors(imgs, method="rgb",
                                     params=dict(R_bins=32, G_bins=32, B_bins=32),
                                     save_path=None)
