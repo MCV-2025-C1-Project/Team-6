@@ -83,19 +83,14 @@ def calculate_distance(a: np.ndarray, b: np.ndarray, metric: str) -> float:
 
 def compute_similarities(l1: List[np.ndarray], l2: List[np.ndarray], metric: str = "euclidean") -> np.ndarray:
     # TODO: Improve the explanation, returns the similarities.
-    similarities = np.zeros(shape=(len(l1), len(l2)))
+    similarities = np.empty((len(l1), len(l2)), dtype=object)
     for i, descriptors1 in enumerate(l1):
         for j, descriptors2 in enumerate(l2):
-            similarities[i,j] = calculate_distance(descriptors1, descriptors2, metric)
-    # return similarities
+            d = calculate_distance(descriptors1, descriptors2, metric)
+            similarities[i, j] = (float(d), j)  # (valor, indice_columna)
+    return similarities
 
-    results = []
-    for i in range(len(l1)):
-        order = np.argsort(similarities[i])  # índices ordenados según distancia
-        tuplas = [(j, similarities[i, j]) for j in order]
-        results.append(tuplas)
     
-    return results
 
 
 

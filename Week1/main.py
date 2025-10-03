@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+from metrics import mean_average_precision
 from pathlib import Path
 from io_utils import read_images, read_pickle
 from descriptors import compute_descriptors
@@ -27,22 +28,28 @@ def main(data_dir: Path) -> None:
     # Size: [n_query_imgs, n_bbdd_imgs]
     similarities = compute_similarities(img_descriptors, bbdd_descriptors['descriptors'])
 
-    print(similarities)
+    #print(similarities)
 
-    # np.sort()
 
     # Choose the result sorting the similarities
     # # TODO: It is just sort each row and take the argmin for the indexes (the images from the BBDD will be loaded in order)
     results = np.sort(similarities, axis=1)
 
-    print(results)
+    #print("#############")
+    #print(results)
 
     # # TODO: Save results in a pickle file called result (then rename it for each method used)
-    # for i, res in enumerate(results):
-    #     print(f"Image {i} most similar images in the BBDD: {res[:K]} with distances {results[i,res[:K]]}")
+    for res in results:
+        print(f" Most similar images in the BBDD: {res[:K]}")
 
+    
+    results = [list(map(lambda x: x[1], row[:K])) for row in results]
+
+    print(results)
 
     # # TODO: Use the metrics.py file to compute the MAP@K score
+    # gt = read_pickle(data_dir / "gt_corresps.pkl")
+    # mean_average_precision(gt, results, k=K)
 
 
     # NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 
