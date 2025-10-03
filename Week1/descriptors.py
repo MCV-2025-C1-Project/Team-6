@@ -51,7 +51,7 @@ def _desc_hsv(
     # From BGR to HSV
     hsv = rgb_to_hsv(rgb).astype(np.float32)
 
-    def _compute_hist(region: np.ndarray) -> np.ndarray:
+    def _compute_hist(hsv: np.ndarray) -> np.ndarray:
         H = hsv[..., 0].ravel()
         S = hsv[..., 1].ravel()
         V = hsv[..., 2].ravel()
