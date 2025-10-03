@@ -1,12 +1,11 @@
 import argparse
+import matplotlib.pyplot as plot
 import numpy as np
 from metrics import mean_average_precision
 from pathlib import Path
 from io_utils import read_images, read_pickle
 from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
-
-K = 2  # Number of neighbors to retrieve
 
 def main(data_dir: Path) -> None:
     # Read images
@@ -18,7 +17,7 @@ def main(data_dir: Path) -> None:
     # TODO: THIS SHOULD BE DELETED!
     #import numpy as np
     #bbdd_descriptors = np.zeros(10)
-    bbdd_descriptors = read_pickle("BBDD_2/BBDD_2_descriptors_rgb.pkl")
+    bbdd_descriptors = read_pickle("BBDD_2/BBDD_descriptors_rgb.pkl")
 
     # Compute query images descriptors
     # Size: [n_query_imgs, descr_dim]
@@ -35,22 +34,27 @@ def main(data_dir: Path) -> None:
     # # TODO: It is just sort each row and take the argmin for the indexes (the images from the BBDD will be loaded in order)
     results = np.sort(similarities, axis=1)
 
+    #print(results.shape)
     #print("#############")
     #print(results)
 
     # # TODO: Save results in a pickle file called result (then rename it for each method used)
     for res in results:
-        print(f" Most similar images in the BBDD: {res[:K]}")
+        print(f" Most similar image to {res} in the BBDD is: {res[0]}")
+        plot.imshow(images[res[0][1]])
 
-    
-    results = [list(map(lambda x: x[1], row[:K])) for row in results]
+    #predictions = [res[0][1] for res in results]
+    predictions = [[t[1] for t in fila] for fila in results]
 
-    print(results)
+    #print(predictions)
 
     # # TODO: Use the metrics.py file to compute the MAP@K score
-    # gt = read_pickle(data_dir / "gt_corresps.pkl")
-    # mean_average_precision(gt, results, k=K)
+    gt = read_pickle(data_dir / "gt_corresps.pkl")
+    print(gt)
 
+    map_score = mean_average_precision(predictions, gt)
+
+    print(map_score)
 
     # NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 
     # COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
