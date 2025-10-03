@@ -87,7 +87,16 @@ def compute_similarities(l1: List[np.ndarray], l2: List[np.ndarray], metric: str
     for i, descriptors1 in enumerate(l1):
         for j, descriptors2 in enumerate(l2):
             similarities[i,j] = calculate_distance(descriptors1, descriptors2, metric)
-    return similarities
+    # return similarities
+
+    results = []
+    for i in range(len(l1)):
+        order = np.argsort(similarities[i])  # índices ordenados según distancia
+        tuplas = [(j, similarities[i, j]) for j in order]
+        results.append(tuplas)
+    
+    return results
+
 
 
 # if __name__ == "__main__":

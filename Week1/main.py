@@ -17,7 +17,7 @@ def main(data_dir: Path) -> None:
     # TODO: THIS SHOULD BE DELETED!
     #import numpy as np
     #bbdd_descriptors = np.zeros(10)
-    bbdd_descriptors = read_pickle("BBDD/BBDD_descriptors_rgb.pkl")
+    bbdd_descriptors = read_pickle("BBDD_2/BBDD_2_descriptors_rgb.pkl")
 
     # Compute query images descriptors
     # Size: [n_query_imgs, descr_dim]
@@ -25,18 +25,24 @@ def main(data_dir: Path) -> None:
 
     # Compute similarities
     # Size: [n_query_imgs, n_bbdd_imgs]
-    similarities = compute_similarities(img_descriptors, bbdd_descriptors)
+    similarities = compute_similarities(img_descriptors, bbdd_descriptors['descriptors'])
+
+    print(similarities)
+
+    # np.sort()
 
     # Choose the result sorting the similarities
-    # TODO: It is just sort each row and take the argmin for the indexes (the images from the BBDD will be loaded in order)
-    results = np.argsort(similarities, axis=1)
+    # # TODO: It is just sort each row and take the argmin for the indexes (the images from the BBDD will be loaded in order)
+    results = np.sort(similarities, axis=1)
 
-    # TODO: Save results in a pickle file called result (then rename it for each method used)
-    for i, res in enumerate(results):
-        print(f"Image {i} most similar images in the BBDD: {res[:K]} with distances {results[i,res[:K]]}")
+    print(results)
+
+    # # TODO: Save results in a pickle file called result (then rename it for each method used)
+    # for i, res in enumerate(results):
+    #     print(f"Image {i} most similar images in the BBDD: {res[:K]} with distances {results[i,res[:K]]}")
 
 
-    # TODO: Use the metrics.py file to compute the MAP@K score
+    # # TODO: Use the metrics.py file to compute the MAP@K score
 
 
     # NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 

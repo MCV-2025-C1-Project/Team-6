@@ -129,10 +129,11 @@ def compute_descriptors(imgs: Union[np.ndarray, List[np.ndarray]],
         
     
 if __name__=="__main__":
-    imgs = read_images(Path.cwd() / "BBDD")
+    imgs = read_images(Path.cwd() / "BBDD_2")
+
     bbdd_desc = compute_descriptors(imgs, method="rgb",
                                     params=dict(R_bins=32, G_bins=32, B_bins=32),
-                                    save_path= Path.cwd()/ "BBDD" / "BBDD_descriptors_rgb.pkl")
+                                    save_path= Path.cwd()/ "BBDD_2" / "BBDD_2_descriptors_rgb.pkl")
     
     # Set quadrants and use_value as wished
     # hsv_desc = compute_descriptors(imgs, method = "hsv",
