@@ -43,11 +43,7 @@ def rgb_to_hsv(rgb: np.ndarray) -> np.ndarray:
     H = np.where(mask_b, 60 * (((R - G) * inv_delta) + 4), H)
     H = (H + 360) % 360
 
-    H_scaled = np.round(H / 360.0 * 255.0)
-    S_scaled = np.round(S * 255.0)
-    V_scaled = np.round(V * 255.0)
-    
-    HSV = np.stack([H_scaled, S_scaled, V_scaled], axis=-1).astype(np.uint8)
+    HSV = np.stack([H, S, V], axis=-1).astype(np.float32)
     HSV = HSV.reshape(og_shape)
     return HSV
 
