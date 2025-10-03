@@ -3,7 +3,7 @@ import numpy as np
 
 from metrics import mean_average_precision
 from pathlib import Path
-from io_utils import read_images, read_pickle
+from io_utils import read_images, read_pickle, write_pickle
 from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
 from typing import Optional, Dict, Any
@@ -117,6 +117,11 @@ def main(
     map_score = mean_average_precision(indices, gt, k)
     print(f"MAP@K score: {map_score:.4f}")
 
+    # TEMPORAL 
+    write_pickle({'MAP@K': map_score.item()}, data_dir / f'{descriptor}_results.pkl')
+
+    print(read_pickle(data_dir / f'{descriptor}_results.pkl'))
+
 
 if __name__ == "__main__":
 
@@ -200,4 +205,5 @@ if __name__ == "__main__":
         raise ValueError(f"{descriptor} is not a valid descriptor. Choose from {valid_descriptors}.")
 
     # Process dataset
-    main(data_dir=data_dir, pickle_path=pickle_path, k=k_results, distance_metric=distance_metric)
+    main(data_dir=data_dir, pickle_path=pickle_path, k=k_results, distance_metric=distance_metric, plot_file=plot_file,
+         descriptor=descriptor)
