@@ -59,18 +59,18 @@ def _desc_hsv(
         
     hsv_baseline = _compute_hist(hsv)
 
-    if quadrants:
-        # We divide image in 4 quadrants and create an histogram of each of those
-        H, W = hsv.shape[:2]
-        h2, w2 = H // 2, W // 2
-        quadrants = [
-            hsv[0:h2, 0:w2],
-            hsv[0:h2, w2:W],
-            hsv[h2:H, 0:w2],
-            hsv[h2:H, w2:W]
-        ]
-        quad_descs = [ _compute_hist(q) for q in quadrants]
-        return np.concatenate([hsv_baseline] + quad_descs, axis=0)
+    # if quadrants:
+    #     # We divide image in 4 quadrants and create an histogram of each of those
+    #     H, W = hsv.shape[:2]
+    #     h2, w2 = H // 2, W // 2
+    #     quadrants = [
+    #         hsv[0:h2, 0:w2],
+    #         hsv[0:h2, w2:W],
+    #         hsv[h2:H, 0:w2],
+    #         hsv[h2:H, w2:W]
+    #     ]
+    #     quad_descs = [ _compute_hist(q) for q in quadrants]
+    #     return np.concatenate([hsv_baseline] + quad_descs, axis=0)
 
     return hsv_baseline
 
@@ -104,7 +104,7 @@ def _desc_hs_rgb(
         pB = histogram(B, n_bins=B_bins, )
 
 
-        print(hH.shape,hS.shape,pR.shape,pG.shape,pB.shape)
+        # print(hH.shape,hS.shape,pR.shape,pG.shape,pB.shape)
 
         desc_parts = [hH.astype(np.float32) / 5, hS.astype(np.float32) / 5, pR.astype(np.float32) / 5, pG.astype(np.float32), pB.astype(np.float32) / 5]
 
@@ -113,7 +113,7 @@ def _desc_hs_rgb(
         return np.concatenate(desc_parts, axis=0)
 
     hs_rgb_baseline = _compute_hist(hsv,rgb)
-    print(hs_rgb_baseline.shape)
+    # print(hs_rgb_baseline.shape)
     return hs_rgb_baseline
 
 
@@ -215,9 +215,21 @@ def compute_descriptors(imgs: Union[np.ndarray, List[np.ndarray]],
 if __name__=="__main__":
     imgs = read_images(Path.cwd() / "BBDD")
 
-    bbdd_desc = compute_descriptors(imgs, method="hs_rgb",
+    rgb_desc = compute_descriptors(imgs, method="rgb",
                                     params=dict(R_bins=32, G_bins=32, B_bins=32),
-                                    save_path= Path.cwd()/ "BBDD_2" / "BBDD_2_descriptors_hs_rgb.pkl")
+                                    save_path=Path.cwd()/ "BBDD" / "BBDD_descriptors_rgb.pkl")
+    
+    # hsrgb_desc = compute_descriptors(imgs, method = "hs_rgb",
+    #                                 params=dict(H_bins=32, S_bins=32, R_bins=32, G_bins=32, B_bins=32),
+    #                                 save_path=Path.cwd()/ "BBDD" / "BBDD_descriptors_hs_rgb.pkl")
+    
+    # hs_desc = compute_descriptors(imgs, method = "hs",
+    #                             params=dict(H_bins=32, S_bins=32),
+    #                             save_path=Path.cwd()/ "BBDD" / "BBDD_descriptors_hs.pkl")
+    
+    # hsv_desc = compute_descriptors(imgs, method = "hsv",
+    #                                params=dict(H_bins=32, S_bins=32, V_bins=32),
+    #                                 save_path=Path.cwd()/ "BBDD" / "BBDD_descriptors_hsv.pkl")
 
     # Set quadrants and use_value as wished
     # hsv_desc = compute_descriptors(imgs, method = "hsv",
