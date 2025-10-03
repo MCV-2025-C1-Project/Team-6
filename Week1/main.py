@@ -1,64 +1,64 @@
 import argparse
-import matplotlib.pyplot as plot
 import numpy as np
+
 from metrics import mean_average_precision
 from pathlib import Path
-from io_utils import read_images, read_pickle
+from io_utils import read_images, read_pickle, plot_query_results
 from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
 
-def main(data_dir: Path) -> None:
-    # Read images
-    images = read_images(data_dir)
 
-    # Obtain database descriptors. TODO: Make this offline, reading from a .pkl file.
-    # Size: [n_bbdd_imgs, descr_dim]
-    # bbdd_descriptors = read_pickle("PATH_TO_THE_FILE")
-    # TODO: THIS SHOULD BE DELETED!
-    #import numpy as np
-    #bbdd_descriptors = np.zeros(10)
-    bbdd_descriptors = read_pickle("BBDD_2/BBDD_descriptors_rgb.pkl")
+# TODO: Save results in a pickle file called result (then rename it for each method used)
+# NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 
+# COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
+
+
+def main(data_dir: Path, k_results: int = 5) -> None:
+    # Read query images
+    images = read_images(data_dir) 
+
+    # Obtain database descriptors.
+    bbdd_descriptors = read_pickle("BBDD/BBDD_descriptors_rgb.pkl")
 
     # Compute query images descriptors
-    # Size: [n_query_imgs, descr_dim]
     img_descriptors = compute_descriptors(images)
 
     # Compute similarities
-    # Size: [n_query_imgs, n_bbdd_imgs]
     similarities = compute_similarities(img_descriptors, bbdd_descriptors['descriptors'])
 
-    #print(similarities)
+    # Sort the similarities
+    sorted_similarities = np.sort(similarities, axis=1)
 
-
-    # Choose the result sorting the similarities
-    # # TODO: It is just sort each row and take the argmin for the indexes (the images from the BBDD will be loaded in order)
-    results = np.sort(similarities, axis=1)
-
-    #print(results.shape)
-    #print("#############")
-    #print(results)
-
-    # # TODO: Save results in a pickle file called result (then rename it for each method used)
-    for res in results:
-        print(f" Most similar image to {res} in the BBDD is: {res[0]}")
-        plot.imshow(images[res[0][1]])
-
-    #predictions = [res[0][1] for res in results]
-    predictions = [[t[1] for t in fila] for fila in results]
-
-    #print(predictions)
-
-    # # TODO: Use the metrics.py file to compute the MAP@K score
-    gt = read_pickle(data_dir / "gt_corresps.pkl")
-    print(gt)
-
-    map_score = mean_average_precision(predictions, gt)
-
-    print(map_score)
-
-    # NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 
-    # COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
+    # Extract indices and similarity values from sorted tuples
+    all_predictions = []
+    results_indices = []
+    results_similarities = []
     
+    for i in range(sorted_similarities.shape[0]):
+        # Extract both indices and similarity values
+        indices = [t[1] for t in sorted_similarities[i]]
+        sim_values = [t[0] for t in sorted_similarities[i]]
+        
+        all_predictions.append(indices)
+        results_indices.append(indices[:k_results])
+        results_similarities.append(sim_values[:k_results])
+
+    print("Most similar images for each query:")
+    for i, (indices, sim_values) in enumerate(zip(results_indices, results_similarities)):
+        print(f"Query {i}:")
+        for j, (idx, sim_val) in enumerate(zip(indices, sim_values)):
+            print(f"  Result {j+1}: idx={idx}, sim={sim_val:.4f}")
+        print()
+
+    # Plot the results with similarity values
+    plot_query_results(images, results_indices, results_similarities, k=k_results, 
+                      save_path=data_dir / "query_results_plot.png")
+
+    # Compute MAP score
+    gt = read_pickle(data_dir / "gt_corresps.pkl")
+    map_score = mean_average_precision(all_predictions, gt)
+    print(f"MAP@K score: {map_score:.4f}")
+
 
 if __name__ == "__main__":
 
