@@ -20,9 +20,9 @@ def _desc_rgb(
     rgb = rgb.astype(np.float32)
 
     # Flatten the channels
-    R = rgb[..., 0]
-    G = rgb[..., 1]
-    B = rgb[..., 2]
+    R = rgb[..., 0] / 255.0
+    G = rgb[..., 1] / 255.0
+    B = rgb[..., 2] / 255.0
 
     # Use pdf insetad of counts
     pR = histogram(R, n_bins=R_bins, ) / 3
@@ -214,7 +214,7 @@ if __name__=="__main__":
 
     bbdd_desc = compute_descriptors(imgs, method="hs_rgb",
                                     params=dict(R_bins=32, G_bins=32, B_bins=32),
-                                    save_path= Path.cwd()/ "BBDD_2" / "BBDD_2_descriptors_hs_xz_rgb.pkl")
+                                    save_path= Path.cwd()/ "BBDD_2" / "BBDD_2_descriptors_hs_rgb.pkl")
 
     # Set quadrants and use_value as wished
     # hsv_desc = compute_descriptors(imgs, method = "hsv",
