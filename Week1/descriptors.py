@@ -20,14 +20,14 @@ def _desc_rgb(
     rgb = rgb.astype(np.float32)
 
     # Flatten the channels
-    R = rgb[..., 0].ravel()
-    G = rgb[..., 1].ravel()
-    B = rgb[..., 2].ravel()
+    R = rgb[..., 0]
+    G = rgb[..., 1]
+    B = rgb[..., 2]
 
     # Use pdf insetad of counts
-    _ , pR, _ = histogram(R, n_bins=R_bins, data_range = (0,255), probs=True)
-    _ , pG, _ = histogram(G, n_bins=G_bins, data_range = (0,255), probs=True)
-    _ , pB, _ = histogram(B, n_bins=B_bins, data_range = (0,255), probs=True)
+    pR = histogram(R, n_bins=R_bins, )
+    pG = histogram(G, n_bins=G_bins, )
+    pB = histogram(B, n_bins=B_bins, )
 
     return np.concatenate([pR, pG, pB], axis=0).astype(np.float32)
 
@@ -37,8 +37,7 @@ def _desc_hsv(
     H_bins: int = 64,
     S_bins: int = 16,
     V_bins: int = 16,
-    use_value: bool = False,
-    quadrants: bool = False
+
     ) -> np.ndarray:
     """
     HSV 1D histogram descriptor.
@@ -48,17 +47,17 @@ def _desc_hsv(
     hsv = rgb_to_hsv(rgb).astype(np.float32)
 
     def _compute_hist(hsv: np.ndarray) -> np.ndarray:
-        H = hsv[..., 0].ravel()
-        S = hsv[..., 1].ravel()
-        V = hsv[..., 2].ravel()
+        H = hsv[..., 0] / 360.0
+        S = hsv[..., 1]
+        V = hsv[..., 2]
 
-        _, hH, _ = histogram(H, n_bins=H_bins, data_range=(0, 255), probs=True)
-        _, hS, _ = histogram(S, n_bins=S_bins, data_range=(0, 255), probs=True)
+        hH = histogram(H, n_bins=H_bins, )
+        hS = histogram(S, n_bins=S_bins, )
 
         desc_parts = [hH.astype(np.float32), hS.astype(np.float32)]
 
         if use_value:
-            _, hV, _ = histogram(V, n_bins=V_bins, data_range=(0, 255), probs=True)
+            hV = histogram(V, n_bins=V_bins, )
             desc_parts.append(hV.astype(np.float32))
         
         return np.concatenate(desc_parts, axis=0)
@@ -97,17 +96,17 @@ def _desc_hs_rgb(
     hsv = rgb_to_hsv(rgb).astype(np.float32)
 
     def _compute_hist(hsv: np.ndarray,rgb: np.ndarray) -> np.ndarray:
-        H = hsv[..., 0].ravel()
-        S = hsv[..., 1].ravel()
+        H = hsv[..., 0] / 360
+        S = hsv[..., 1]
 
-        R = rgb[..., 0].ravel()
-        G = rgb[..., 1].ravel()
-        B = rgb[..., 2].ravel()
-        _, hH, _ = histogram(H, n_bins=H_bins, data_range=(0, 255), probs=True)
-        _, hS, _ = histogram(S, n_bins=S_bins, data_range=(0, 255), probs=True)
-        _, pR, _ = histogram(R, n_bins=R_bins, data_range = (0,255), probs=True)
-        _, pG, _ = histogram(G, n_bins=G_bins, data_range = (0,255), probs=True)
-        _, pB, _ = histogram(B, n_bins=B_bins, data_range = (0,255), probs=True)
+        R = rgb[..., 0] / 255.0
+        G = rgb[..., 1] / 255.0
+        B = rgb[..., 2] / 255.0
+        hH = histogram(H, n_bins=H_bins, )
+        hS = histogram(S, n_bins=S_bins, )
+        pR = histogram(R, n_bins=R_bins, )
+        pG = histogram(G, n_bins=G_bins, )
+        pB = histogram(B, n_bins=B_bins, )
 
         desc_parts = [hH.astype(np.float32), hS.astype(np.float32), pR.astype(np.float32), pG.astype(np.float32), pB.astype(np.float32)]
 
@@ -134,11 +133,11 @@ def _desc_hs(
     hsv = rgb_to_hsv(rgb).astype(np.float32)
 
     def _compute_hist(hsv: np.ndarray,rgb: np.ndarray) -> np.ndarray:
-        H = hsv[..., 0].ravel()
-        S = hsv[..., 1].ravel()
+        H = hsv[..., 0] / 360.0
+        S = hsv[..., 1]
 
-        _, hH, _ = histogram(H, n_bins=H_bins, data_range=(0, 255), probs=True)
-        _, hS, _ = histogram(S, n_bins=S_bins, data_range=(0, 255), probs=True)
+        hH = histogram(H, n_bins=H_bins, )
+        hS = histogram(S, n_bins=S_bins, )
 
 
         desc_parts = [hH.astype(np.float32), hS.astype(np.float32)]
@@ -180,7 +179,7 @@ def compute_descriptors(imgs: Union[np.ndarray, List[np.ndarray]],
         use_value = params.get("use_value", False)
         quadrants = params.get("quadrants", False)
         print(f"Computing HSV descriptors with quadrants set to {quadrants} and use_value set as {use_value}")
-        descs = [ _desc_hsv(im, H_bins, S_bins, V_bins, use_value =use_value, quadrants=quadrants) \
+        descs = [ _desc_hsv(im, H_bins, S_bins, V_bins,) \
                   for im in img_list]
     elif method == "hs_rgb":
         H_bins = params.get("H_bins", 32)
@@ -192,7 +191,7 @@ def compute_descriptors(imgs: Union[np.ndarray, List[np.ndarray]],
         use_value = params.get("use_value", False)
         quadrants = params.get("quadrants", False)
         print(f"Computing HS_RGB descriptors with quadrants set to {quadrants} and use_value set as {use_value}")
-        descs = [ _desc_hs_rgb(im, H_bins, S_bins, R_bins, G_bins, B_bins, use_value =use_value, quadrants=quadrants) \
+        descs = [ _desc_hs_rgb(im, H_bins, S_bins, R_bins, G_bins, B_bins, ) \
                   for im in img_list]
     elif method == "hs":
         H_bins = params.get("H_bins", 32)
@@ -200,7 +199,7 @@ def compute_descriptors(imgs: Union[np.ndarray, List[np.ndarray]],
         use_value = params.get("use_value", False)
         quadrants = params.get("quadrants", False)
         print(f"Computing HS descriptors with quadrants set to {quadrants} and use_value set as {use_value}")
-        descs = [ _desc_hs(im, H_bins, S_bins, use_value =use_value, quadrants=quadrants) \
+        descs = [ _desc_hs(im, H_bins, S_bins,) \
                   for im in img_list]
     
     else:
@@ -218,7 +217,7 @@ def compute_descriptors(imgs: Union[np.ndarray, List[np.ndarray]],
 if __name__=="__main__":
     imgs = read_images(Path.cwd() / "BBDD")
 
-    bbdd_desc = compute_descriptors(imgs, method="hs_xz_rgb",
+    bbdd_desc = compute_descriptors(imgs, method="hs_rgb",
                                     params=dict(R_bins=32, G_bins=32, B_bins=32),
                                     save_path= Path.cwd()/ "BBDD_2" / "BBDD_2_descriptors_hs_xz_rgb.pkl")
 
