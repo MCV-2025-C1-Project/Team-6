@@ -13,7 +13,7 @@ from similarity_measures import compute_similarities
 # COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
 
 
-def main(data_dir: Path, k_results: int = 5) -> None:
+def main(data_dir: Path, k: int = 5) -> None:
     # Read query images
     images = read_images(data_dir) 
 
@@ -31,8 +31,8 @@ def main(data_dir: Path, k_results: int = 5) -> None:
     sorted_sims = np.take_along_axis(similarities, indices, axis=1)
 
     # Extract the best k results
-    results_indices = indices[:, :k_results]
-    results_similarities = sorted_sims[:, :k_results]
+    results_indices = indices[:, :k]
+    results_similarities = sorted_sims[:, :k]
 
     print("Most similar images for each query:")
     for i, (indices, sim_values) in enumerate(zip(results_indices, results_similarities)):
@@ -42,12 +42,12 @@ def main(data_dir: Path, k_results: int = 5) -> None:
         print()
 
     # Plot the results with similarity values
-    plot_query_results(images, results_indices, results_similarities, k=k_results, 
+    plot_query_results(images, results_indices, results_similarities, k=k, 
                       save_path=data_dir / "query_results_plot.png")
 
     # Compute MAP score
     gt = read_pickle(data_dir / "gt_corresps.pkl")
-    map_score = mean_average_precision(indices, gt)
+    map_score = mean_average_precision(indices, gt, k)
     print(f"MAP@K score: {map_score:.4f}")
 
 
