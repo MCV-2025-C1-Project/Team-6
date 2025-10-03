@@ -103,14 +103,17 @@ def _desc_hs_rgb(
         pG = histogram(G, n_bins=G_bins, )
         pB = histogram(B, n_bins=B_bins, )
 
-        desc_parts = [hH.astype(np.float32) / 5, hS.astype(np.float32) / 5, pR.astype(np.float32) / 5, pG.astype(np.float32), pB.astype(np.float32)]
+
+        print(hH.shape,hS.shape,pR.shape,pG.shape,pB.shape)
+
+        desc_parts = [hH.astype(np.float32) / 5, hS.astype(np.float32) / 5, pR.astype(np.float32) / 5, pG.astype(np.float32), pB.astype(np.float32) / 5]
 
         
         
         return np.concatenate(desc_parts, axis=0)
 
     hs_rgb_baseline = _compute_hist(hsv,rgb)
-
+    print(hs_rgb_baseline.shape)
     return hs_rgb_baseline
 
 
