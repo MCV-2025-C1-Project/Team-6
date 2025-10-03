@@ -1,119 +1,75 @@
 "This script contains histogram functions to use throughout the project."
 import random
-import numbers
-from typing import Iterable, Tuple, Optional
+from typing import Optional
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-def histogram(
-    data: Iterable[numbers.Real],
-    n_bins: int = 10,
-    data_range: Optional[Tuple[float, float]] = None,
-    probs: bool = False) -> Tuple[np.ndarray, Optional[np.ndarray], np.ndarray]:
+def histogram(data: np.ndarray, n_bins: int = 10) -> np.ndarray:
     """
     This method computes the histogram of the input data and 
-    returns the counts, pdf (if selected) and the indexes of the edges.
+    returns the counts and the indexes of the edges.
     Args:
-        - data (iterable of numbers) Input data to compute the histogram from.
+        - data (np.ndarray) Input 2D image to compute the histogram from.
         - n_bins (int) Number of bins for the histogram to have.
-        - data_range (tuple) Range of the histogram
-        - probs (bool) Return the PDF (True) or the counts (False).
 
     Returns:
-        - counts (np.ndarray): Number of pixels inside a bin.
-        - pdf (np.ndarray): Bin probabilities if probs=True, else None.
-        - edges (np.ndarray): The indexes of the edges of each bin.
+        - np.ndarray: Normalized histogram with shape (n_bins).
     """
-    data_arr = np.asarray(data)
-    if data_arr.size == 0:
-        # Treat case where no data was supplied
-        if not data_range:
-            low, high = 0.0, 1.0
-        else:
-            low, high = data_range
-        if high == low:
-            high = low + 1.0
-        width = (high - low) / n_bins
-        edges = np.array([low + i*width for i in range(n_bins+1)], dtype=float)
-        counts = np.zeros(n_bins, dtype=float)
-        pdf = np.zeros(n_bins, dtype=float) if probs else None
-        return counts, pdf, edges
-
-    if not data_range:
-        low = float(np.min(data_arr))
-        high = float(np.max(data_arr))
-    else:
-        low, high = data_range
+    if data.ndim != 2:
+        raise ValueError("data expects an image of shape (H, W).")
     
-    # Avoid bins with 0 width
-    if high == low:
-        high = low + 1.0
+    H,W = data.shape
+    if H < 1 or W < 1:
+        raise ValueError("Empty image.")
+    
+    min_val, max_val = data.min(), data.max()
+    if min_val < 0 or max_val > 1:
+        raise ValueError(f"Input data should be normalized to [0,1] (given: [{min_val},{max_val}].")
+    elif n_bins < 1:
+        raise ValueError(f"Number of bins must be positive (given: {n_bins}).")
+    
+    # Compute bin edges
+    edges = np.linspace(0, 1, n_bins+1) # 1 more edge than bins
 
-    width = (high - low) / n_bins
-    edges = np.array([low + i*width for i in range(n_bins+1)], dtype=float) # Always 1 more edge than bin
+    # Get bin index per data value (np.digitize starts at index 1)
+    indices = np.digitize(data.flatten(), edges) - 1
 
-    # Compute the counts
-    counts = np.zeros(n_bins, dtype=float)
-    total_in_range = 0 
-    for x in data_arr:
-        if x < low or x > high:
-            continue
+    # Count ocurrences in each bin
+    histogram = np.bincount(indices, minlength=n_bins).astype(np.float32)
 
-        idx = int((x - low) / width)
-        
-        # Fix when idx is out of histogram scope
-        if idx == n_bins:
-            idx = n_bins - 1
-        counts[idx] += 1
-        total_in_range += 1
+    # Return normalized histogram
+    return histogram / (H*W)
 
-    # Compute PDF
-    if probs:
-        pdf = np.zeros(n_bins, dtype=float) if total_in_range == 0 else counts / float(total_in_range)
-        return counts, pdf, edges
-    return counts, None, edges
 
 def plot_histogram(
-    data: Iterable[numbers.Real],
+    data: np.ndarray,
     n_bins: int = 10,
-    data_range: Optional[Tuple[float, float]] = None,
-    probs: bool = False,
     title: str = "Histogram",
-    xlabel: str = "Value",
-    outfile: Optional[str] = None) -> Optional[str]:
+    outfile: Optional[str] = None) -> None:
     """
     Plot a histogram of the input data.
     Args:
-        - data (iterable of numbers) Input data to plot the histogram from.
+        - data (np.ndarray) Input 2D image to compute the histogram from.
         - n_bins (int) Number of bins for the histogram to have.
-        - data_range(tuple) Range for the histogram to be.
-        - probs (bool) Return the PDF (True) or the counts (False).
         - title (str): Title of the histogram.
         - xlabel (str): Name of the x-axis.
         - outfile (str): The path to save file.
-
-    Returns:
-        - outfile (str): The path where file as saved. None if not provided.
     """
-    counts, pdf, edges = histogram(data, n_bins=n_bins, data_range=data_range, probs=probs)
+    # Compute histogram
+    hist = histogram(data, n_bins=n_bins)
 
-    # Draw bars
-    widths = np.diff(edges)
-    lefts  = edges[:-1]
-
-    fig, ax = plt.subplots()
-    ax.bar(lefts, pdf if probs else counts, width=widths, align="edge")
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel("Probability" if probs else "Count")
-    fig.tight_layout()
+    # Plot it (save to image if wanted)
+    plt.plot(hist)
+    plt.xlabel("Bin")
+    plt.ylabel("Probability")
+    plt.title(title)
+    plt.show()
 
     if outfile:
-        fig.savefig(outfile, dpi=200)
-    plt.show()
-    return outfile
+        plt.savefig(outfile, dpi=200)
+
 
 def equalize_histogram(probs: np.ndarray = None):
     """
@@ -145,26 +101,10 @@ def equalize_histogram(probs: np.ndarray = None):
 if __name__=="__main__":
     # Create test data
     random.seed(42)
-    data = [random.gauss(0, 1) for _ in range(70)] + \
-            [random.gauss(3, 0.8) for _ in range(30)]
 
-    data = np.array(data)
-    
-    # Original histogram
-    histogram_path = plot_histogram(
-        data,
-        n_bins=10,
-        title="Example Histogram",
-        xlabel="Value",
-        outfile=None
-    )
-
-    # Get PDF and equalization mapping
-    counts, pdf, edges = histogram(data, n_bins=10, probs=True) 
-    equalized_hist, mapping = equalize_histogram(pdf)
-
-    print("Original:", counts, pdf)
-    print("Equalized:", equalized_hist, mapping)
+    data = np.array([[1,1,1,1,1,1, 0.4, 0.3 , 0]])
+    print(histogram(data))
+    plot_histogram(data)
 
     
     
