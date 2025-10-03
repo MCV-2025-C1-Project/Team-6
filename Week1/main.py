@@ -26,22 +26,13 @@ def main(data_dir: Path, k_results: int = 5) -> None:
     # Compute similarities
     similarities = compute_similarities(img_descriptors, bbdd_descriptors['descriptors'])
 
-    # Sort the similarities
-    sorted_similarities = np.sort(similarities, axis=1)
+    # Sort the similarities and obtain their indices
+    indices = np.argsort(similarities, axis=1)
+    sorted_sims = np.take_along_axis(similarities, indices, axis=1)
 
-    # Extract indices and similarity values from sorted tuples
-    all_predictions = []
-    results_indices = []
-    results_similarities = []
-    
-    for i in range(sorted_similarities.shape[0]):
-        # Extract both indices and similarity values
-        indices = [t[1] for t in sorted_similarities[i]]
-        sim_values = [t[0] for t in sorted_similarities[i]]
-        
-        all_predictions.append(indices)
-        results_indices.append(indices[:k_results])
-        results_similarities.append(sim_values[:k_results])
+    # Extract the best k results
+    results_indices = indices[:, :k_results]
+    results_similarities = sorted_sims[:, :k_results]
 
     print("Most similar images for each query:")
     for i, (indices, sim_values) in enumerate(zip(results_indices, results_similarities)):
@@ -56,7 +47,7 @@ def main(data_dir: Path, k_results: int = 5) -> None:
 
     # Compute MAP score
     gt = read_pickle(data_dir / "gt_corresps.pkl")
-    map_score = mean_average_precision(all_predictions, gt)
+    map_score = mean_average_precision(indices, gt)
     print(f"MAP@K score: {map_score:.4f}")
 
 
