@@ -27,4 +27,7 @@ def read_images(dir_path: Path) -> List[np.ndarray]:
     Returns:
         List[np.ndarray]:   A list containing the images.
     """
-    return [cv2.imread(str(img_path)) for img_path in sorted(dir_path.glob("*.jpg"))]
+    return [
+        cv2.cvtColor(cv2.imread(str(img_path)), cv2.COLOR_BGR2RGB)
+        for img_path in sorted(dir_path.glob("*.jpg"))
+    ]

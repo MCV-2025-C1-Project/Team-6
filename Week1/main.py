@@ -1,8 +1,11 @@
 import argparse
+import numpy as np
 from pathlib import Path
 from io_utils import read_images, read_pickle
 from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
+
+K = 2  # Number of neighbors to retrieve
 
 def main(data_dir: Path) -> None:
     # Read images
@@ -12,8 +15,9 @@ def main(data_dir: Path) -> None:
     # Size: [n_bbdd_imgs, descr_dim]
     # bbdd_descriptors = read_pickle("PATH_TO_THE_FILE")
     # TODO: THIS SHOULD BE DELETED!
-    import numpy as np
-    bbdd_descriptors = np.zeros(10)
+    #import numpy as np
+    #bbdd_descriptors = np.zeros(10)
+    bbdd_descriptors = read_pickle("BBDD/BBDD_descriptors_rgb.pkl")
 
     # Compute query images descriptors
     # Size: [n_query_imgs, descr_dim]
@@ -25,13 +29,19 @@ def main(data_dir: Path) -> None:
 
     # Choose the result sorting the similarities
     # TODO: It is just sort each row and take the argmin for the indexes (the images from the BBDD will be loaded in order)
+    results = np.argsort(similarities, axis=1)
 
     # TODO: Save results in a pickle file called result (then rename it for each method used)
+    for i, res in enumerate(results):
+        print(f"Image {i} most similar images in the BBDD: {res[:K]} with distances {results[i,res[:K]]}")
+
+
+    # TODO: Use the metrics.py file to compute the MAP@K score
+
 
     # NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 
     # COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
-
-
+    
 
 if __name__ == "__main__":
 
