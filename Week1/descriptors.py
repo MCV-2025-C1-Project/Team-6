@@ -48,7 +48,7 @@ def _desc_hsv(
     HSV 1D histogram descriptor.
     By default use H and S. If use_value=True, adds V channel as well.
     """
-    # From BGR to HSV
+    # From RGB to HSV
     hsv = rgb_to_hsv(rgb).astype(np.float32)
 
     def _compute_hist(hsv: np.ndarray) -> np.ndarray:
@@ -79,13 +79,8 @@ def _desc_hsv(
             hsv[h2:H, 0:w2],
             hsv[h2:H, w2:W]
         ]
-        desc_quads = np.stack([_compute_hist(q) for q in quadrants], axis=0)
-        # Take the mean of the quadrants
-        desc_local = np.mean(desc_quads, axis=0)
-
-        # Weighted combination. Mostly single image but also quadrants
-        # This way we introduce spatial features!
-        return np.concatenate([0.6 * hsv_baseline, 0.4 * desc_local], axis=0)
+        quad_descs = [ _compute_hist(q) for q in quadrants]
+        return np.concatenate([hsv_baseline] + quad_descs, axis=0)
 
     return hsv_baseline
 

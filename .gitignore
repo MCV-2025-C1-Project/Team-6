@@ -4,5 +4,8 @@
 *.pkl
 *.txt
 
+# Avoid uploading datasets
+Week1/BBDD
+
 # Ignore cache files
 __pycache__
