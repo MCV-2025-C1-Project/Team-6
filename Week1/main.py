@@ -103,9 +103,9 @@ def main(
     
     # Print some results
     print("Most similar images for each query:")
-    for i, (indices, sim_values) in enumerate(zip(results_indices, results_similarities)):
+    for i, (res_idx, sim_values) in enumerate(zip(results_indices, results_similarities)):
         print(f"Query {i} - GT: {gt[i]}:")
-        for j, (idx, sim_val) in enumerate(zip(indices, sim_values)):
+        for j, (idx, sim_val) in enumerate(zip(res_idx, sim_values)):
             print(f"  Result {j+1}: idx={idx}, sim={sim_val:.4f}")
         print()
  
