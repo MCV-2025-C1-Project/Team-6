@@ -20,9 +20,9 @@ def _desc_rgb(
     rgb = rgb.astype(np.float32)
 
     # Flatten the channels
-    R = rgb[..., 0]
-    G = rgb[..., 1]
-    B = rgb[..., 2]
+    R = rgb[..., 0] / 255.0
+    G = rgb[..., 1] / 255.0
+    B = rgb[..., 2] / 255.0
 
     # Use pdf insetad of counts
     pR = histogram(R, n_bins=R_bins, ) / 3
@@ -103,14 +103,17 @@ def _desc_hs_rgb(
         pG = histogram(G, n_bins=G_bins, )
         pB = histogram(B, n_bins=B_bins, )
 
-        desc_parts = [hH.astype(np.float32) / 5, hS.astype(np.float32) / 5, pR.astype(np.float32) / 5, pG.astype(np.float32), pB.astype(np.float32)]
+
+        print(hH.shape,hS.shape,pR.shape,pG.shape,pB.shape)
+
+        desc_parts = [hH.astype(np.float32) / 5, hS.astype(np.float32) / 5, pR.astype(np.float32) / 5, pG.astype(np.float32), pB.astype(np.float32) / 5]
 
         
         
         return np.concatenate(desc_parts, axis=0)
 
     hs_rgb_baseline = _compute_hist(hsv,rgb)
-
+    print(hs_rgb_baseline.shape)
     return hs_rgb_baseline
 
 
@@ -214,7 +217,7 @@ if __name__=="__main__":
 
     bbdd_desc = compute_descriptors(imgs, method="hs_rgb",
                                     params=dict(R_bins=32, G_bins=32, B_bins=32),
-                                    save_path= Path.cwd()/ "BBDD_2" / "BBDD_2_descriptors_hs_xz_rgb.pkl")
+                                    save_path= Path.cwd()/ "BBDD_2" / "BBDD_2_descriptors_hs_rgb.pkl")
 
     # Set quadrants and use_value as wished
     # hsv_desc = compute_descriptors(imgs, method = "hsv",

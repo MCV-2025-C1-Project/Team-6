@@ -34,8 +34,9 @@ def histogram(data: np.ndarray, n_bins: int = 10) -> np.ndarray:
     edges = np.linspace(0, 1, n_bins+1) # 1 more edge than bins
 
     # Get bin index per data value (np.digitize starts at index 1)
-    indices = np.digitize(data.flatten(), edges) - 1
+    indices = np.digitize(data.flatten(), edges,) - 1
 
+    indices = np.clip(indices, 0, n_bins-1) # Ensure indices are within valid range
     # Count ocurrences in each bin
     histogram = np.bincount(indices, minlength=n_bins).astype(np.float32)
 
