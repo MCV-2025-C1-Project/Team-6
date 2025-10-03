@@ -2,7 +2,7 @@ import numpy as np
 """Implementations of color space conversions based on the website: http://brucelindbloom.com/ 
 and the website: https://www.rapidtables.com/convert/color/rgb-to-hsv.html"""
 
-def rgb_to_xyz(rgb):
+def rgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
     og_shape = rgb.shape
     rgb = rgb.reshape(3, -1) / 255.0
     # We assume sRGB, as its not specified
@@ -16,53 +16,53 @@ def rgb_to_xyz(rgb):
 
     return XYZ
 
-def rgb_to_hsv(rgb):
+def rgb_to_hsv(rgb: np.ndarray) -> np.ndarray:
     og_shape = rgb.shape
     rgb = rgb.reshape(-1, 3) / 255.0
 
     R = rgb[:, 0]
     G = rgb[:, 1]
     B = rgb[:, 2]
-
-    
     Cmax = np.max(rgb,axis=1)
-
-
     Cmin = np.min(rgb,axis=1)
-
-
     delta = Cmax - Cmin
 
-
-
-    H = np.zeros_like(R)
-
+    H = np.zeros_like(Cmax, dtype=np.float32)
     V = Cmax
+    S = np.divide(delta, Cmax, out=np.zeros_like(Cmax, dtype=np.float32), where=Cmax != 0)
 
-    S = np.where(Cmax == 0.0, 0, delta / Cmax)
+    # Safe inverse to avoid /0
+    inv_delta = np.divide(1.0, delta, out=np.zeros_like(delta, dtype=np.float32), where=delta != 0)
 
     mask_r = (delta != 0.0) & (Cmax == R)
     mask_g = (delta != 0.0) & (Cmax == G)
     mask_b = (delta != 0.0) & (Cmax == B)
 
-    H = np.where(mask_r, 60 * (((G - B) / delta) % 6), H)
-    
-
-    H = np.where(mask_g, 60 * (((B - R) / delta) + 2), H)
-    
-
-    H = np.where(mask_b, 60 * (((R - G) / delta) + 4), H)
-
+    H = np.where(mask_r, 60 * (((G - B) * inv_delta) % 6), H)
+    H = np.where(mask_g, 60 * (((B - R) * inv_delta) + 2), H)
+    H = np.where(mask_b, 60 * (((R - G) * inv_delta) + 4), H)
     H = (H + 360) % 360
 
-    H_scaled = H / 360.0 * 255.0
-    S_scaled = S * 255.0
-    V_scaled = V * 255.0
+    H_scaled = np.round(H / 360.0 * 255.0)
+    S_scaled = np.round(S * 255.0)
+    V_scaled = np.round(V * 255.0)
     
-    HSV = np.stack([H_scaled, S_scaled, V_scaled], axis=-1)
-
-
-    HSV = (HSV).astype(np.uint8)
+    HSV = np.stack([H_scaled, S_scaled, V_scaled], axis=-1).astype(np.uint8)
     HSV = HSV.reshape(og_shape)
-
     return HSV
+
+def bgr_to_rgb(bgr: np.ndarray) -> np.ndarray:
+    if bgr.ndim != 3 or bgr.shape[2] != 3:
+        raise ValueError("bgr_to_rgb expects an image of shape (H, W, 3).")
+
+    og_shape = bgr.shape
+    flat = bgr.reshape(-1, 3) # No need to normalize, just a swapping of channels
+
+    # BGR -> RGB, swap first and last columns
+    B = flat[:, 0]
+    G = flat[:, 1]
+    R = flat[:, 2]
+
+    rgb_flat = np.stack([R, G, B], axis=-1)
+    rgb = rgb_flat.reshape(og_shape)
+    return rgb
