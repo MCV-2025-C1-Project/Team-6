@@ -20,12 +20,10 @@ def mean_average_precision(predictions: np.ndarray, gt: List[List[int]], k=10) -
 
     map_score = 0
     for query_predictions, query_gt in zip(top_k_predictions, gt):
-        relevant = query_gt[0]
+        gt_index = np.where(query_predictions == query_gt[0])[0]
         
-        if relevant in query_predictions:
-            index = np.where(query_predictions == relevant)
-            map_score += 1 / (index[0][0] + 1)
-        else:
-            map_score += 0
+        # Ground truth predicted: add precision based on rank
+        if len(gt_index) > 0:
+            map_score += 1 / (gt_index[0] + 1)
 
     return map_score / len(top_k_predictions)    
