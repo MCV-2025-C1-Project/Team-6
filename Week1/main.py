@@ -9,12 +9,13 @@ from similarity_measures import compute_similarities
 from typing import Optional, Dict, Any
 
 
-# TODO: Save results in a pickle file called result (then rename it for each method used)
+# TODO: we can compute all the similarities at once with all the distances metrics for each descriptor
+# then put the results in the plots
 # NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 
 # COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
 
 import matplotlib
-matplotlib.use('Agg')  
+matplotlib.use('TkAgg')  # Use TkAgg backend for better compatibility
 import matplotlib.pyplot as plt
 
 def plot_query_results(queries, results, similarity_values, k=5, save_path=None):
@@ -66,6 +67,58 @@ def plot_query_results(queries, results, similarity_values, k=5, save_path=None)
         plt.show()
 
 
+def plot_descriptors_difference(query_descriptors: np.ndarray, most_similar_descriptors: np.ndarray, save_path: Optional[str] = None) -> None:
+    """
+    Plot the difference between two image descriptors for the whole query set.
+    
+    Args:
+        query_descriptors: np.ndarray of shape (D,) representing the query image descriptor
+        most_similar_descriptors: np.ndarray of shape (D,) representing the most similar image descriptor
+        save_path: Optional path to save the plot. If None, the plot is shown.
+    """
+
+    n_queries = query_descriptors.shape[0]
+    
+    fig, axes = plt.subplots(n_queries, 1, figsize=(14, 4 * n_queries))
+    
+    # To list if only one query
+    if n_queries == 1:
+        axes = [axes]
+    
+    # Plotting comparisons
+    for i in range(n_queries):
+        ax = axes[i]
+        
+        line1 = ax.plot(query_descriptors[i], label='Query Descriptor', color='blue', alpha=0.8, linewidth=1.5)
+        line2 = ax.plot(most_similar_descriptors[i], label='BBDD Descriptor', color='orange', alpha=0.8, linewidth=1.5)
+        
+        # NECESSARY?
+        # difference = query_descriptors[i] - most_similar_descriptors[i]
+        # ax.fill_between(range(len(difference)), query_descriptors[i], most_similar_descriptors[i], 
+        #                alpha=0.3, color='red', label='Difference')
+        
+        ax.set_title(f'Descriptor Comparison - Query {i}', fontsize=14, pad=20)
+        ax.set_xlabel('Descriptor Dimension', fontsize=12)
+        ax.set_ylabel('Descriptor Value', fontsize=12)
+        ax.legend(fontsize=11)
+        ax.grid(True, alpha=0.3)
+        
+        # TODO (?): Print the similarity metrics (passed as arguments)
+        # Example
+        # textstr = f'Euclidean: {euclidean:.4f}\nCosine: {cosine_sim:.4f}'
+        textstr = f'Euclidean: N/A\nCosine: N/A\nChi2: N/A' 
+        ax.text(0.02, 0.98, textstr, transform=ax.transAxes, fontsize=11,
+                verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    
+    plt.tight_layout(pad=3.0)
+    
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
+        print(f"Plot saved to {save_path}")
+    else:
+        plt.show()
+
+
 def main(
     data_dir: Path, 
     pickle_path: Path,
@@ -96,8 +149,6 @@ def main(
     results_indices = indices[:, :k]
     results_similarities = sorted_sims[:, :k]
 
-    print(results_indices)
-
     # Load ground truth
     gt = read_pickle(data_dir / "gt_corresps.pkl")
     
@@ -108,7 +159,11 @@ def main(
         for j, (idx, sim_val) in enumerate(zip(res_idx, sim_values)):
             print(f"  Result {j+1}: idx={idx}, sim={sim_val:.4f}")
         print()
- 
+
+    # Plot the descriptors difference with the most similar
+    plot_descriptors_difference(img_descriptors, bbdd_descriptors['descriptors'][results_indices[:, 0]],
+                                save_path=data_dir / f'descriptor_difference_{descriptor}.png')
+
     # Plot the results with similarity values
     plot_query_results(images, results_indices, results_similarities, k=k, 
                       save_path=data_dir / plot_file)
@@ -119,8 +174,6 @@ def main(
 
     # TEMPORAL 
     write_pickle({'MAP@K': map_score.item()}, data_dir / f'{descriptor}_results.pkl')
-
-    print(read_pickle(data_dir / f'{descriptor}_results.pkl'))
 
 
 if __name__ == "__main__":
