@@ -173,7 +173,7 @@ def main(
     print(f"MAP@K score: {map_score:.4f}")
 
     # TEMPORAL 
-    write_pickle({'MAP@K': map_score.item()}, data_dir / f'{descriptor}_results.pkl')
+    write_pickle({'MAP@K': map_score}, data_dir / f'{descriptor}_results.pkl')
 
 
 if __name__ == "__main__":
