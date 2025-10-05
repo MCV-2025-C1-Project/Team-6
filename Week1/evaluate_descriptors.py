@@ -5,7 +5,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-from params import experiments
+from params import experiments, best_config_1, best_config_5
 from metrics import mean_average_precision
 from pathlib import Path
 from io_utils import read_images, read_pickle
@@ -18,7 +18,7 @@ from plots import plot_query_results, plot_descriptors_difference
 # COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
 
 
-def main(data_dir: Path, k_results: int = 5) -> None:
+def main(data_dir: Path) -> None:
 
     # Create dir for outputs
     os.makedirs(Path(__file__).resolve().parent / 'outputs', exist_ok=True)
@@ -26,12 +26,17 @@ def main(data_dir: Path, k_results: int = 5) -> None:
     # Read query images
     images = read_images(data_dir) 
 
-    methods =  experiments["methods"]
+    methods = experiments["methods"]
     metrics = experiments["metrics"]
     bins = experiments["n_bins"]
+    k = experiments["k_value"]
+
+    # methods = best_config_5["methods"]
+    # metrics = best_config_5["metrics"]
+    # bins = best_config_5["n_bins"]
+    # k = best_config_5["k_value"]
 
     mapk_scores = {}
-    k= 5
     for method in methods:
         for n_bins in bins:
             bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / f"{method}_{n_bins}bins_descriptors.pkl")
@@ -49,14 +54,13 @@ def main(data_dir: Path, k_results: int = 5) -> None:
                 # Extract the best k results
                 results_indices = indices[:, :k]
 
-                print(results_indices[:, 0])
                 results_similarities = sorted_sims[:, :k]
 
                 # Load ground truth
                 gt = read_pickle(data_dir / "gt_corresps.pkl")
 
                 # Print some results
-                print("Most similar images for each query:")
+                print(f"Most similar images for each query at K={k}:")
                 for i, (res_idx, sim_values) in enumerate(zip(results_indices, results_similarities)):
                     print(f"Query {i} - GT: {gt[i]}:")
                     for j, (idx, sim_val) in enumerate(zip(res_idx, sim_values)):
@@ -67,19 +71,18 @@ def main(data_dir: Path, k_results: int = 5) -> None:
 
                 
                 # Plot the descriptors difference with the most similar
-                best_descriptors = [bbdd_descriptors[idx] for idx in results_indices[:, 0]]
-
-                plot_descriptors_difference(img_descriptors, best_descriptors,
-                            save_path=Path(__file__).resolve().parent / 'outputs' / f'descriptor_difference_{method}_{n_bins}_{metric}.png')
+                # best_descriptors = [bbdd_descriptors[idx] for idx in results_indices[:, 0]]
+                # plot_descriptors_difference(img_descriptors, best_descriptors,
+                #             save_path=Path(__file__).resolve().parent / 'outputs' / f'descriptor_difference_at{k}_{method}_{n_bins}_{metric}.png')
                 
-                # Plot the results with similarity values
-                plot_query_results(images, results_indices, results_similarities, k=k, 
-                                save_path=Path(__file__).resolve().parent / 'outputs' / f'query_{method}_{n_bins}_{metric}.png')
+                # # Plot the results with similarity values
+                # plot_query_results(images, results_indices, results_similarities, k=k, 
+                #                 save_path=Path(__file__).resolve().parent / 'outputs' / f'query_at{k}_{method}_{n_bins}_{metric}.png')
 
                 # Compute MAP score
                 map_score = mean_average_precision(indices, gt, k)
 
-                print(f"MAP@K score: {map_score:.4f}, using {metric} metric, {method} descriptors with {n_bins} bins.")
+                print(f"MAP@{k} score: {map_score:.4f}, using {metric} metric, {method} descriptors with {n_bins} bins.")
                 mapk_scores[f"{method}_{n_bins}bins_{metric}"] = map_score
             
             print()
@@ -111,14 +114,14 @@ def main(data_dir: Path, k_results: int = 5) -> None:
             for j in range(len(metrics)):
                 ax.text(j, i, f"{score_matrix[i, j]:.3f}", ha="center", va="center", color="w")
 
-        ax.set_title(f"MAP@5 scores by descriptor and metric for {bin} bins")
+        ax.set_title(f"MAP@{k} scores by descriptor and metric for {bin} bins")
         fig.colorbar(im, ax=ax)
         plt.tight_layout()
-        plt.savefig(Path(__file__).resolve().parent / 'outputs' / f"mapk_matrix_{bin}.png")
+        plt.savefig(Path(__file__).resolve().parent / 'outputs' / f"map{k}_matrix_{bin}.png")
         plt.close()
 
 
-    print("Top 5 Configurations:")
+    print(f"Top 5 Configurations at K={k}:")
     sorted_mapk = dict(sorted(mapk_scores.items(), key=lambda item: item[1], reverse=True))
     for i, (key, value) in enumerate(sorted_mapk.items()):
         if i < 5:
@@ -127,7 +130,7 @@ def main(data_dir: Path, k_results: int = 5) -> None:
             break
 
     print("Writing results to txt file.")
-    with open(Path(__file__).resolve().parent / 'outputs' / "results.txt", "w") as f:
+    with open(Path(__file__).resolve().parent / 'outputs' / f"results_at{k}.txt", "w") as f:
         for key, value in mapk_scores.items():
             f.write(f"{key}: {value:.4f}\n")
 

@@ -58,6 +58,7 @@ def plot_query_results(queries: List[np.ndarray],
     else:
         plt.show()
 
+    plt.close()
 
 def plot_descriptors_difference(query_descriptors: List[np.ndarray], 
                                 most_similar_descriptors: List[np.ndarray], 
