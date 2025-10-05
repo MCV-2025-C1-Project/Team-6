@@ -1,5 +1,6 @@
 import pickle
 from typing import Any, List
+
 import cv2
 import numpy as np
 from pathlib import Path
@@ -77,6 +78,11 @@ def Plot_comparison_descriptors_simils(results: np.ndarray,
     fig.colorbar(im, ax=ax)
     fig.tight_layout()
     plt.show()
+
+
+def load_txt_lines(path):
+    with open(path, "r", encoding="utf-8") as f:
+        return f.readlines()
 
 
 if __name__ == "__main__":

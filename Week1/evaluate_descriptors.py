@@ -1,3 +1,5 @@
+"""Evaluates retrieval on query images by loading precomputed BBDD descriptors, computing query descriptors
+and ranking with multiple metrics."""
 import argparse
 
 import numpy as np
@@ -11,7 +13,6 @@ from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
 
 
-# TODO: Save results in a pickle file called result (then rename it for each method used)
 # NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 
 # COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
 
@@ -30,8 +31,7 @@ def main(data_dir: Path, k_results: int = 5) -> None:
     k= 5
     for method in methods:
         for n_bins in bins:
-            bbdd_descriptors = read_pickle(Path(__file__).resolve().parent.parent / "descriptors" / f"{method}_{n_bins}bins_descriptors.pkl")
-
+            bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / f"{method}_{n_bins}bins_descriptors.pkl")
 
             img_descriptors = compute_descriptors(images, method=method, n_bins=n_bins, save_pkl=False)
             for metric in metrics:
@@ -40,14 +40,7 @@ def main(data_dir: Path, k_results: int = 5) -> None:
                 similarities = compute_similarities(img_descriptors, bbdd_descriptors, metric=metric)
                 indices = np.argsort(similarities, axis=1)
 
-
-
                 gt = read_pickle(data_dir / "gt_corresps.pkl")
-                
-                # Print some results
-                
-
-                
 
                 # Compute MAP score
                 map_score = mean_average_precision(indices, gt, k)
@@ -56,7 +49,6 @@ def main(data_dir: Path, k_results: int = 5) -> None:
                 mapk_scores[f"{method}_{n_bins}bins_{metric}"] = map_score
             
             print()
-
         print()
 
     for bin in bins:

@@ -1,7 +1,9 @@
 import argparse
 from typing import Optional, Dict, Any
 
+import matplotlib
 import numpy as np
+import matplotlib.pyplot as plt
 
 from params import experiments
 from metrics import mean_average_precision
@@ -11,14 +13,11 @@ from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
 
 
-# TODO: we can compute all the similarities at once with all the distances metrics for each descriptor
-# then put the results in the plots
 # NOTE: WE CAN ADD MORE ARGUMENTS IN THE DATA PARSER TO ACCOUNT FOR THE 2 STRATEGIES TO USE, OR WE CAN MAKE 
 # COMPUTE DESCRIPTORS TO DO WHATEVER, THIS IS A FIRST SKELETON
 
-import matplotlib
+
 matplotlib.use('TkAgg')  # Use TkAgg backend for better compatibility
-import matplotlib.pyplot as plt
 
 def plot_query_results(queries, results, similarity_values, k=5, save_path=None):
     """
@@ -80,7 +79,6 @@ def plot_descriptors_difference(query_descriptors: np.ndarray, most_similar_desc
     """
 
     n_queries = query_descriptors.shape[0]
-    
     fig, axes = plt.subplots(n_queries, 1, figsize=(14, 4 * n_queries))
     
     # To list if only one query

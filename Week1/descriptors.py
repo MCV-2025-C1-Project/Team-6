@@ -1,3 +1,4 @@
+"Computes RGB/HS/HSV (and RGB+HS) 1D color-histogram descriptors for images read from BBDD."
 import os
 from typing import List
 
