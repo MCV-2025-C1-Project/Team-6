@@ -1,12 +1,14 @@
 import argparse
+from typing import Optional, Dict, Any
+
 import numpy as np
 
+from params import experiments
 from metrics import mean_average_precision
 from pathlib import Path
 from io_utils import read_images, read_pickle, write_pickle
 from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
-from typing import Optional, Dict, Any
 
 
 # TODO: we can compute all the similarities at once with all the distances metrics for each descriptor
@@ -249,11 +251,11 @@ if __name__ == "__main__":
     if not plot_file.endswith('.png'):
         raise ValueError(f"{plot_file} is not a valid PNG file.")
     # Check distance metric
-    valid_metrics = ['euclidean', 'l1', 'chi2', 'histogram_intersection', 'hellinger', 'cosine', 'bhattacharyya']
+    valid_metrics = experiments["metrics"]
     if distance_metric not in valid_metrics:
         raise ValueError(f"{distance_metric} is not a valid metric. Choose from {valid_metrics}.")
     # Check descriptor
-    valid_descriptors = ['rgb', 'hsv', 'hs_rgb', 'hs']
+    valid_descriptors = experiments["methods"]
     if descriptor not in valid_descriptors:
         raise ValueError(f"{descriptor} is not a valid descriptor. Choose from {valid_descriptors}.")
 

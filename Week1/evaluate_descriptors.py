@@ -1,12 +1,14 @@
 import argparse
-import numpy as np
 
+import numpy as np
+import matplotlib.pyplot as plt
+
+from params import experiments
 from metrics import mean_average_precision
 from pathlib import Path
 from io_utils import read_images, read_pickle
 from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
-import matplotlib.pyplot as plt
 
 
 # TODO: Save results in a pickle file called result (then rename it for each method used)
@@ -20,12 +22,14 @@ def main(data_dir: Path, k_results: int = 5) -> None:
 
     # Obtain database descriptors.
     
+    methods =  experiments["methods"]
+    metrics = experiments["metrics"]
+    bins = experiments["n_bins"]
 
-    metrics = ["euclidean", "l1", "chi2", "histogram_intersection", "hellinger", "cosine", "bhattacharyya"]
     mapk_scores = {}
     k= 5
-    for method in ["rgb", "hs", "hsv", "rgb-hs"]:
-        for n_bins in [16, 32, 64, 128, 256]:
+    for method in methods:
+        for n_bins in bins:
             bbdd_descriptors = read_pickle(Path(__file__).resolve().parent.parent / "descriptors" / f"{method}_{n_bins}bins_descriptors.pkl")
 
 
@@ -55,11 +59,6 @@ def main(data_dir: Path, k_results: int = 5) -> None:
 
         print()
 
-
-
-    metrics = ["euclidean", "l1", "chi2", "histogram_intersection", "hellinger", "cosine", "bhattacharyya"]
-    methods = ["rgb", "hs", "hsv", "rgb-hs"]
-    bins = [16, 32, 64, 128, 256]
     for bin in bins:
     # Build matrix of scores
         score_matrix = []

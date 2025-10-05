@@ -1,12 +1,14 @@
+import os
 from typing import List
 
 import numpy as np
-import os
 from pathlib import Path
 
+from params import experiments
 from color_spaces import rgb_to_hsv
 from histogram import histogram
 from io_utils import write_pickle, read_images
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -115,6 +117,6 @@ def compute_descriptors(imgs: List[np.ndarray],
 if __name__=="__main__":
     bbdd_imgs = read_images(SCRIPT_DIR.parent / "BBDD")
 
-    for method in ["rgb", "hs", "hsv", "rgb-hs"]:
-        for n_bins in [16, 32, 64, 128, 256]:
+    for method in experiments["methods"]:
+        for n_bins in experiments["n_bins"]:
             compute_descriptors(bbdd_imgs, method=method, n_bins=n_bins, save_pkl=True)
