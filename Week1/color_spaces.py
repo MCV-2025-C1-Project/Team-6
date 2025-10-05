@@ -1,6 +1,6 @@
-import numpy as np
 """Implementations of color space conversions based on the website: http://brucelindbloom.com/ 
 and the website: https://www.rapidtables.com/convert/color/rgb-to-hsv.html"""
+import numpy as np
 
 def rgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
     og_shape = rgb.shape

@@ -1,4 +1,4 @@
-"This script contains histogram functions to use throughout the project."
+"Contains histogram functions to use throughout the project."
 import random
 from typing import Optional
 
