@@ -1,5 +1,5 @@
 import argparse
-
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -9,6 +9,7 @@ from pathlib import Path
 from io_utils import read_images, read_pickle
 from descriptors import compute_descriptors
 from similarity_measures import compute_similarities
+from plots import plot_query_results, plot_descriptors_difference
 
 
 # TODO: Save results in a pickle file called result (then rename it for each method used)
@@ -17,11 +18,13 @@ from similarity_measures import compute_similarities
 
 
 def main(data_dir: Path, k_results: int = 5) -> None:
+
+    # Create dir for outputs
+    os.makedirs(Path(__file__).resolve().parent / 'outputs', exist_ok=True)
+
     # Read query images
     images = read_images(data_dir) 
 
-    # Obtain database descriptors.
-    
     methods =  experiments["methods"]
     metrics = experiments["metrics"]
     bins = experiments["n_bins"]
@@ -38,16 +41,40 @@ def main(data_dir: Path, k_results: int = 5) -> None:
 
                 print(f"Computing similarities using {metric} metric.")
                 similarities = compute_similarities(img_descriptors, bbdd_descriptors, metric=metric)
+                
+                # Sort the similarities and obtain their indices
                 indices = np.argsort(similarities, axis=1)
+                sorted_sims = np.take_along_axis(similarities, indices, axis=1)
 
+                # Extract the best k results
+                results_indices = indices[:, :k]
 
+                print(results_indices[:, 0])
+                results_similarities = sorted_sims[:, :k]
 
+                # Load ground truth
                 gt = read_pickle(data_dir / "gt_corresps.pkl")
-                
+
                 # Print some results
+                print("Most similar images for each query:")
+                for i, (res_idx, sim_values) in enumerate(zip(results_indices, results_similarities)):
+                    print(f"Query {i} - GT: {gt[i]}:")
+                    for j, (idx, sim_val) in enumerate(zip(res_idx, sim_values)):
+                        print(f"  Result {j+1}: idx={idx}, sim={sim_val:.4f}")
+                    print()
                 
+                gt = read_pickle(data_dir / "gt_corresps.pkl")
 
                 
+                # Plot the descriptors difference with the most similar
+                best_descriptors = [bbdd_descriptors[idx] for idx in results_indices[:, 0]]
+
+                plot_descriptors_difference(img_descriptors, best_descriptors,
+                            save_path=Path(__file__).resolve().parent / 'outputs' / f'descriptor_difference_{method}_{n_bins}_{metric}.png')
+                
+                # Plot the results with similarity values
+                plot_query_results(images, results_indices, results_similarities, k=k, 
+                                save_path=Path(__file__).resolve().parent / 'outputs' / f'query_{method}_{n_bins}_{metric}.png')
 
                 # Compute MAP score
                 map_score = mean_average_precision(indices, gt, k)
@@ -88,7 +115,7 @@ def main(data_dir: Path, k_results: int = 5) -> None:
         ax.set_title(f"MAP@5 scores by descriptor and metric for {bin} bins")
         fig.colorbar(im, ax=ax)
         plt.tight_layout()
-        plt.savefig(f"mapk_matrix_{bin}.png")
+        plt.savefig(Path(__file__).resolve().parent / 'outputs' / f"mapk_matrix_{bin}.png")
         plt.close()
 
 
@@ -101,7 +128,7 @@ def main(data_dir: Path, k_results: int = 5) -> None:
             break
 
     print("Writing results to txt file.")
-    with open("results.txt", "w") as f:
+    with open(Path(__file__).resolve().parent / 'outputs' / "results.txt", "w") as f:
         for key, value in mapk_scores.items():
             f.write(f"{key}: {value:.4f}\n")
 
