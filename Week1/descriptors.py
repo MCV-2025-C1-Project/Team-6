@@ -81,23 +81,23 @@ def compute_descriptors(imgs: List[np.ndarray],
 
     # Baseline
     if method == "rgb":
-        print("Computing RGB descriptors.")
         descs = [_desc_rgb(im, n_bins) for im in imgs]
     
     # Much stronger, H and S capture color independent of brightness
     elif method == "hs":
-        print("Computing HS descriptors.")
         descs = [_desc_hsv(im, n_bins) for im in imgs]
         
     # Try to add the brightness
     elif method == "hsv":
-        print("Computing HSV descriptors.")
         descs = [_desc_hsv(im, n_bins, use_value=True) for im in imgs]
 
     # Combine RGB and HS descriptors
     elif method == "rgb-hs":
-        print("Computing RGB+HS descriptors.")
         descs = [_desc_rgb_hsv(im, n_bins) for im in imgs]
+
+    # Combine RGB and HSV descriptors
+    elif method == "rgb-hsv":
+        descs = [_desc_rgb_hsv(im, n_bins, use_value=True) for im in imgs]
     
     else:
         raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
@@ -107,7 +107,6 @@ def compute_descriptors(imgs: List[np.ndarray],
         # Make directory if not setted up
         os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
         
-        # write_pickle(descs, SCRIPT_DIR / f"{method}_{n_bins}bins_descriptors.pkl")
         write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_descriptors.pkl")
 
     return descs
@@ -119,4 +118,5 @@ if __name__=="__main__":
 
     for method in experiments["methods"]:
         for n_bins in experiments["n_bins"]:
+            print(f"Computing {method} descriptors with {n_bins} bins.")
             compute_descriptors(bbdd_imgs, method=method, n_bins=n_bins, save_pkl=True)
