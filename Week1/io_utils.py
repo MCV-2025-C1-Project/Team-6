@@ -3,7 +3,6 @@ from typing import Any, List
 import cv2
 import numpy as np
 from pathlib import Path
-import matplotlib.pyplot as plt
 
 # Read data from pickle file
 def read_pickle(file_path: Path) -> Any:
@@ -11,12 +10,10 @@ def read_pickle(file_path: Path) -> Any:
         data = pickle.load(f)
     return data
 
-
 # Write data to a pickle file
 def write_pickle(data: Any, file_path: Path) -> None:
     with open(file_path, "wb") as f:
         pickle.dump(data, f)
-
 
 def read_images(dir_path: Path) -> List[np.ndarray]:
     """

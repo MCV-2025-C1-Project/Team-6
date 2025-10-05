@@ -18,7 +18,7 @@ def chi2_distance(a: np.ndarray, b: np.ndarray) -> float:
     """
     Compute the Chi-square distance between two vectors.
     """
-    return np.sum(((a - b) ** 2) / (a + b) + 1e-10)
+    return np.sum(((a - b) ** 2) / (a + b + 1e-10))
 
 def histogram_intersection(a: np.ndarray, b: np.ndarray) -> float:
     """
