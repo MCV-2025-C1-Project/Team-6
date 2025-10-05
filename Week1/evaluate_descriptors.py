@@ -26,7 +26,7 @@ def main(data_dir: Path, k_results: int = 5) -> None:
     k= 5
     for method in ["rgb", "hs", "hsv", "rgb-hs"]:
         for n_bins in [16, 32, 64, 128, 256]:
-            bbdd_descriptors = read_pickle(f"{method}_{n_bins}bins_descriptors.pkl")
+            bbdd_descriptors = read_pickle(Path(__file__).resolve().parent.parent / "descriptors" / f"{method}_{n_bins}bins_descriptors.pkl")
 
 
             img_descriptors = compute_descriptors(images, method=method, n_bins=n_bins, save_pkl=False)
@@ -35,8 +35,6 @@ def main(data_dir: Path, k_results: int = 5) -> None:
                 print(f"Computing similarities using {metric} metric.")
                 similarities = compute_similarities(img_descriptors, bbdd_descriptors, metric=metric)
                 indices = np.argsort(similarities, axis=1)
-
-
 
 
 
@@ -52,6 +50,10 @@ def main(data_dir: Path, k_results: int = 5) -> None:
 
                 print(f"MAP@K score: {map_score:.4f}, using {metric} metric, {method} descriptors with {n_bins} bins.")
                 mapk_scores[f"{method}_{n_bins}bins_{metric}"] = map_score
+            
+            print()
+
+        print()
 
 
 
@@ -84,10 +86,10 @@ def main(data_dir: Path, k_results: int = 5) -> None:
             for j in range(len(metrics)):
                 ax.text(j, i, f"{score_matrix[i, j]:.3f}", ha="center", va="center", color="w")
 
-        ax.set_title("MAP@5 scores by descriptor and metric for 16 bins")
+        ax.set_title(f"MAP@5 scores by descriptor and metric for {bin} bins")
         fig.colorbar(im, ax=ax)
         plt.tight_layout()
-        plt.savefig("mapk_matrix.png")
+        plt.savefig(f"mapk_matrix_{bin}.png")
         plt.close()
 
 

@@ -1,6 +1,7 @@
 from typing import List
 
 import numpy as np
+import os
 from pathlib import Path
 
 from color_spaces import rgb_to_hsv
@@ -101,7 +102,11 @@ def compute_descriptors(imgs: List[np.ndarray],
     
     # Save descriptors to a pickle file
     if save_pkl:
-        write_pickle(descs, SCRIPT_DIR / f"{method}_{n_bins}bins_descriptors.pkl")
+        # Make directory if not setted up
+        os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
+        
+        # write_pickle(descs, SCRIPT_DIR / f"{method}_{n_bins}bins_descriptors.pkl")
+        write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_descriptors.pkl")
 
     return descs
         
