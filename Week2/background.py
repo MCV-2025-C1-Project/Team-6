@@ -1,0 +1,1 @@
+# This script should contain the methods to remove the background and return the masks
