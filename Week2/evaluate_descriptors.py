@@ -28,9 +28,10 @@ def main(data_dir: Path, generate_plots=False) -> None:
     k_values = experiments["k_values"]
     n_crops = experiments["n_crops"]
     # Evaluation
-    for n_crop in n_crops:
-        for k in k_values:
-            mapk_scores = {}
+    
+    for k in k_values:
+        mapk_scores = {}
+        for n_crop in n_crops:
             for method in methods:
                 for n_bins in bins:
                     bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / f"{method}_{n_bins}bins_{n_crop}crops_descriptors.pkl")
@@ -78,37 +79,49 @@ def main(data_dir: Path, generate_plots=False) -> None:
                     print()
                 print()
 
-            for bin in bins:
-                # Build matrix of scores
-                score_matrix = []
-                for method in methods:
-                    row = []
-                    for metric in metrics:
-                        row.append(mapk_scores[f"{method}_{bin}bins_{metric}_{n_crop}crops"])
-                    score_matrix.append(row)
-
-                score_matrix = np.array(score_matrix)
+            # Build matrices for each method-metric pair across bins and crops
+        for method in methods:
+            for metric in metrics:
+                # Create matrix rows = n_crops, cols = bins
+                score_matrix = np.zeros((len(n_crops), len(bins)))
+                
+                for i, n_crop in enumerate(n_crops):
+                    for j, n_bin in enumerate(bins):
+                        key = f"{method}_{n_bin}bins_{metric}_{n_crop}crops"
+                        if key in mapk_scores:
+                            score_matrix[i, j] = mapk_scores[key]
+                        else:
+                            score_matrix[i, j] = np.nan  # in case something missing
 
                 # Plot heatmap
-                fig, ax = plt.subplots(figsize=(10, 6))
-                im = ax.imshow(score_matrix, cmap="viridis")
+                fig, ax = plt.subplots(figsize=(8, 6))
+                im = ax.imshow(score_matrix, cmap="viridis", aspect="auto")
 
-                # Show all ticks and label them
-                ax.set_xticks(np.arange(len(metrics)))
-                ax.set_yticks(np.arange(len(methods)))
-                ax.set_xticklabels(metrics, rotation=45, ha="right")
-                ax.set_yticklabels(methods)
+                # Set labels
+                ax.set_xticks(np.arange(len(bins)))
+                ax.set_yticks(np.arange(len(n_crops)))
+                ax.set_xticklabels(bins)
+                ax.set_yticklabels(n_crops)
+                ax.set_xlabel("Number of bins")
+                ax.set_ylabel("Number of crops")
+                ax.set_title(f"MAP@{k} for {method} - {metric}")
 
-                # Add values on top of cells
-                for i in range(len(methods)):
-                    for j in range(len(metrics)):
-                        ax.text(j, i, f"{score_matrix[i, j]:.3f}", ha="center", va="center", color="w")
+                # Annotate cells with values
+                for i in range(len(n_crops)):
+                    for j in range(len(bins)):
+                        val = score_matrix[i, j]
+                        if not np.isnan(val):
+                            ax.text(j, i, f"{val:.3f}", ha="center", va="center", color="w", fontsize=8)
 
-                ax.set_title(f"MAP@{k} scores by descriptor and metric for {bin} bins")
+                # Add colorbar
                 fig.colorbar(im, ax=ax)
+
                 plt.tight_layout()
-                plt.savefig(Path(__file__).resolve().parent / 'outputs' / f"map{k}_matrix_{bin}_{n_crop}crops.png")
+                plt.savefig(
+                    Path(__file__).resolve().parent / "outputs" / f"map{k}_matrix_{method}_{metric}.png"
+                )
                 plt.close()
+
 
         print(f"Top 5 Configurations at K={k}:")
         sorted_mapk = dict(sorted(mapk_scores.items(), key=lambda item: item[1], reverse=True))

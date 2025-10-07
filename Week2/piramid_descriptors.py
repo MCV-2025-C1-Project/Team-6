@@ -88,55 +88,99 @@ def _spatial_crop(img: np.ndarray, n_crops: int = 3, ) -> np.ndarray:
 def compute_spatial_descriptors(imgs: List[np.ndarray], 
                                 n_crops: int = 3,
                                 
-                                pyramid: bool = True,
+                                pyramid: bool = False,
+                                pyramid_levels: list = [1, 3,5],
                         method: str = "rgb",
                         n_bins: int = 32,
                         save_pkl: bool = False) -> List[np.ndarray]:
-    cropped_imgs = [_spatial_crop(im, n_crops) for im in imgs]
-    descs = []
-    # Baseline
-    if method == "rgb":
-        initial_descs = [[_desc_rgb(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
-        for cropped_img in initial_descs:
-            final_histogram = np.concatenate(cropped_img, axis=0)
-            descs.append(final_histogram)
-    # Much stronger, H and S capture color independent of brightness
-    elif method == "hs":
-        initial_descs = [[_desc_hsv(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
-        for cropped_img in initial_descs:
-            final_histogram = np.concatenate(cropped_img, axis=0)
-            descs.append(final_histogram)
+    if pyramid:
+        descs = []
+        img_count = len(imgs)
+        level_descs = []
+        for level in pyramid_levels:
+            cropped_imgs = [_spatial_crop(im, level) for im in imgs]
+            
+            # Baseline
+            if method == "rgb":
+                initial_descs = [[_desc_rgb(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
+                
+            # Much stronger, H and S capture color independent of brightness
+            elif method == "hs":
+                initial_descs = [[_desc_hsv(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
+
+                
+            # Try to add the brightness
+            elif method == "hsv":
+                initial_descs = [[_desc_hsv(crop, n_bins,use_value=True) for crop in cropped_img] for cropped_img in cropped_imgs]
+
+
+            # Combine RGB and HS descriptors
+            elif method == "rgb-hs":
+                initial_descs = [[_desc_rgb_hsv(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
+
+
+            # Combine RGB and HSV descriptors
+            elif method == "rgb-hsv":
+                initial_descs = [[_desc_rgb_hsv(crop, n_bins,use_value=True) for crop in cropped_img] for cropped_img in cropped_imgs]
+
+            
+            else:
+                raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
+            
+            for cropped_img in initial_descs:
+                    final_histogram = np.concatenate(cropped_img, axis=0)
+                    level_descs.append(final_histogram)
+
+        for img in range(img_count):
+            level_descs_img = []
+            for level in range( len(pyramid_levels)):
+                level_descs_img.append(level_descs[img + img_count * level])
+            descs.append(np.concatenate(level_descs_img, axis=0))
         
-    # Try to add the brightness
-    elif method == "hsv":
-        initial_descs = [[_desc_hsv(crop, n_bins,use_value=True) for crop in cropped_img] for cropped_img in cropped_imgs]
-        for cropped_img in initial_descs:
-            final_histogram = np.concatenate(cropped_img, axis=0)
-            descs.append(final_histogram)
+        if save_pkl:
+            # Make directory if not setted up
+            os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
+            
+            write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}_pyramid_descriptors.pkl")
+    else: 
+        cropped_imgs = [_spatial_crop(im, n_crops) for im in imgs]
+        descs = []
+        # Baseline
+        if method == "rgb":
+            initial_descs = [[_desc_rgb(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
+            
+        # Much stronger, H and S capture color independent of brightness
+        elif method == "hs":
+            initial_descs = [[_desc_hsv(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
 
-    # Combine RGB and HS descriptors
-    elif method == "rgb-hs":
-        initial_descs = [[_desc_rgb_hsv(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
-        for cropped_img in initial_descs:
-            final_histogram = np.concatenate(cropped_img, axis=0)
-            descs.append(final_histogram)
+            
+        # Try to add the brightness
+        elif method == "hsv":
+            initial_descs = [[_desc_hsv(crop, n_bins,use_value=True) for crop in cropped_img] for cropped_img in cropped_imgs]
 
-    # Combine RGB and HSV descriptors
-    elif method == "rgb-hsv":
-        initial_descs = [[_desc_rgb_hsv(crop, n_bins,use_value=True) for crop in cropped_img] for cropped_img in cropped_imgs]
+
+        # Combine RGB and HS descriptors
+        elif method == "rgb-hs":
+            initial_descs = [[_desc_rgb_hsv(crop, n_bins) for crop in cropped_img] for cropped_img in cropped_imgs]
+
+
+        # Combine RGB and HSV descriptors
+        elif method == "rgb-hsv":
+            initial_descs = [[_desc_rgb_hsv(crop, n_bins,use_value=True) for crop in cropped_img] for cropped_img in cropped_imgs]
+
+        
+        else:
+            raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
+        
         for cropped_img in initial_descs:
-            final_histogram = np.concatenate(cropped_img, axis=0)
-            descs.append(final_histogram)
-    
-    else:
-        raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
-    
+                final_histogram = np.concatenate(cropped_img, axis=0)
+                descs.append(final_histogram)
     # Save descriptors to a pickle file
-    if save_pkl:
-        # Make directory if not setted up
-        os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
-        
-        write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_{n_crops}crops_descriptors.pkl")
+        if save_pkl:
+            # Make directory if not setted up
+            os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
+            
+            write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_{n_crops}crops_descriptors.pkl")
 
     return descs
         
@@ -144,8 +188,8 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
 # Compute descriptors for benchmark
 if __name__=="__main__":
     bbdd_imgs = read_images(SCRIPT_DIR.parent / "BBDD")
-    for n_crop in experiments["n_crops"]:
-        for method in experiments["methods"]:
+    compute_spatial_descriptors(bbdd_imgs,pyramid=True, method="hsv", n_bins=16, save_pkl=True)
+    for method in experiments["methods"]:
             for n_bins in experiments["n_bins"]:
-                print(f"Computing {method} descriptors with {n_bins} bins {n_crop} crops.")
-                compute_spatial_descriptors(bbdd_imgs,n_crops=n_crop, method=method, n_bins=n_bins, save_pkl=True)
+                print(f"Computing {method} descriptors with {n_bins} bins pyramid.")
+                compute_spatial_descriptors(bbdd_imgs,pyramid=True, method=method, n_bins=n_bins, save_pkl=True)
