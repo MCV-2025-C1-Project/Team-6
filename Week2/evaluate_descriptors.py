@@ -34,7 +34,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
         for n_crop in n_crops:
             for method in methods:
                 for n_bins in bins:
-                    bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / f"{method}_{n_bins}bins_{n_crop}crops_descriptors.pkl")
+                    bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / f"{method}_{n_bins}bins_{n_crop}crops_noWeights_descriptors.pkl")
                     img_descriptors = compute_spatial_descriptors(images, method=method, n_bins=n_bins, save_pkl=False, n_crops=n_crop)
 
                     for metric in metrics:
@@ -80,47 +80,106 @@ def main(data_dir: Path, generate_plots=False) -> None:
                 print()
 
             # Build matrices for each method-metric pair across bins and crops
-        for method in methods:
-            for metric in metrics:
-                # Create matrix rows = n_crops, cols = bins
-                score_matrix = np.zeros((len(n_crops), len(bins)))
-                
-                for i, n_crop in enumerate(n_crops):
+        matrix = False
+        if matrix:
+            for method in methods:
+                for metric in metrics:
+                    # Create matrix rows = n_crops, cols = bins
+                    score_matrix = np.zeros((len(n_crops), len(bins)))
+                    
+                    for i, n_crop in enumerate(n_crops):
+                        for j, n_bin in enumerate(bins):
+                            key = f"{method}_{n_bin}bins_{metric}_{n_crop}crops"
+                            if key in mapk_scores:
+                                score_matrix[i, j] = mapk_scores[key]
+                            else:
+                                score_matrix[i, j] = np.nan  # in case something missing
+
+                    # Plot heatmap
+                    fig, ax = plt.subplots(figsize=(8, 6))
+                    im = ax.imshow(score_matrix, cmap="viridis", aspect="auto")
+
+                    # Set labels
+                    ax.set_xticks(np.arange(len(bins)))
+                    ax.set_yticks(np.arange(len(n_crops)))
+                    ax.set_xticklabels(bins)
+                    ax.set_yticklabels(n_crops)
+                    ax.set_xlabel("Number of bins")
+                    ax.set_ylabel("Number of crops")
+                    ax.set_title(f"MAP@{k} for {method} - {metric}")
+
+                    # Annotate cells with values
+                    for i in range(len(n_crops)):
+                        for j in range(len(bins)):
+                            val = score_matrix[i, j]
+                            if not np.isnan(val):
+                                ax.text(j, i, f"{val:.3f}", ha="center", va="center", color="w", fontsize=8)
+
+                    # Add colorbar
+                    fig.colorbar(im, ax=ax)
+
+                    plt.tight_layout()
+                    plt.savefig(
+                        Path(__file__).resolve().parent / "outputs" / f"map{k}_matrix_{method}_{metric}_noWeights.png"
+                    )
+                    plt.close()
+        else:
+            for method in methods:
+                for metric in metrics:
+                    
+                    # Plot function (line plot)
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    
+                    # Iterate over the values of bins to create separate lines
                     for j, n_bin in enumerate(bins):
-                        key = f"{method}_{n_bin}bins_{metric}_{n_crop}crops"
-                        if key in mapk_scores:
-                            score_matrix[i, j] = mapk_scores[key]
-                        else:
-                            score_matrix[i, j] = np.nan  # in case something missing
+                        # Create a list to hold the scores for the current n_bin across all n_crops
+                        scores_for_n_bin = []
+                        
+                        # Iterate over n_crops (the x-axis)
+                        for i, n_crop in enumerate(n_crops):
+                            key = f"{method}_{n_bin}bins_{metric}_{n_crop}crops"
+                            if key in mapk_scores:
+                                score = mapk_scores[key]
+                            else:
+                                score = np.nan # Use NaN if data is missing
+                            
+                            scores_for_n_bin.append(score)
 
-                # Plot heatmap
-                fig, ax = plt.subplots(figsize=(8, 6))
-                im = ax.imshow(score_matrix, cmap="viridis", aspect="auto")
+                        # Prepare data for plotting
+                        x_data = np.array(n_crops) # The x-axis data
+                        y_data = np.array(scores_for_n_bin) # The score data
+                        
+                        # Find valid data points (not NaN)
+                        valid_indices = ~np.isnan(y_data)
+                        
+                        # Plot the line for the current n_bin
+                        ax.plot(
+                            x_data[valid_indices], 
+                            y_data[valid_indices], 
+                            marker='o', 
+                            linestyle='-', 
+                            label=f"{n_bin} bins"
+                        )
 
-                # Set labels
-                ax.set_xticks(np.arange(len(bins)))
-                ax.set_yticks(np.arange(len(n_crops)))
-                ax.set_xticklabels(bins)
-                ax.set_yticklabels(n_crops)
-                ax.set_xlabel("Number of bins")
-                ax.set_ylabel("Number of crops")
-                ax.set_title(f"MAP@{k} for {method} - {metric}")
+                    # Set labels and title
+                    ax.set_xlabel("Number of crops") # Changed X-axis label
+                    ax.set_ylabel(f"MAP@{k} Score")
+                    ax.set_title(f"MAP@{k} Score vs. Crops for {method} - {metric}")
+                    
+                    # Set x-ticks to correspond to the actual n_crops numbers
+                    ax.set_xticks(n_crops)
+                    
+                    # Add a legend to distinguish the lines (different number of bins)
+                    ax.legend(title="Number of Bins")
 
-                # Annotate cells with values
-                for i in range(len(n_crops)):
-                    for j in range(len(bins)):
-                        val = score_matrix[i, j]
-                        if not np.isnan(val):
-                            ax.text(j, i, f"{val:.3f}", ha="center", va="center", color="w", fontsize=8)
+                    # Add grid for better readability
+                    ax.grid(True, linestyle='--', alpha=0.7)
 
-                # Add colorbar
-                fig.colorbar(im, ax=ax)
-
-                plt.tight_layout()
-                plt.savefig(
-                    Path(__file__).resolve().parent / "outputs" / f"map{k}_matrix_{method}_{metric}.png"
-                )
-                plt.close()
+                    plt.tight_layout()
+                    plt.savefig(
+                        Path(__file__).resolve().parent / "outputs" / f"map{k}_function_crops_xaxis_{method}_{metric}_noWeights.png"
+                    )
+                    plt.close()
 
 
         print(f"Top 5 Configurations at K={k}:")

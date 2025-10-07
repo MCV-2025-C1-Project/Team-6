@@ -179,8 +179,9 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
     # Save descriptors to a pickle file
         if save_pkl:
             # Make directory if not setted up
+            print("Saving descriptors...")
             os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
-            
+            print(descs)
             write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_{n_crops}crops_noWeights_descriptors.pkl")
 
     return descs
@@ -191,7 +192,7 @@ if __name__=="__main__":
     bbdd_imgs = read_images(SCRIPT_DIR.parent / "BBDD")
     for n_crop in experiments["n_crops"]:
         print(f"Computing {n_crop} crops descriptors...")
-        compute_spatial_descriptors(bbdd_imgs,pyramid=False, method="hsv", n_bins=16, save_pkl=True)
+        compute_spatial_descriptors(bbdd_imgs,pyramid=False, method="hsv",n_crops=n_crop, n_bins=16, save_pkl=True)
 
     
                 
