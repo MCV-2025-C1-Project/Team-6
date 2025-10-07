@@ -90,8 +90,8 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
                                 
                                 pyramid: bool = False,
                                 pyramid_levels: list = [1, 3,5],
-                        method: str = "rgb",
-                        n_bins: int = 32,
+                        method: str = "hsv",
+                        n_bins: int = 16,
                         save_pkl: bool = False) -> List[np.ndarray]:
     if pyramid:
         descs = []
@@ -173,14 +173,15 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
             raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
         
         for cropped_img in initial_descs:
-                final_histogram = np.concatenate(cropped_img, axis=0)
+                # Concatenate and normalize
+                final_histogram = np.concatenate(cropped_img, axis=0) / (n_crops*n_crops)
                 descs.append(final_histogram)
     # Save descriptors to a pickle file
         if save_pkl:
             # Make directory if not setted up
             os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
             
-            write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_{n_crops}crops_descriptors.pkl")
+            write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_{n_crops}crops_noWeights_descriptors.pkl")
 
     return descs
         
@@ -188,8 +189,9 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
 # Compute descriptors for benchmark
 if __name__=="__main__":
     bbdd_imgs = read_images(SCRIPT_DIR.parent / "BBDD")
-    compute_spatial_descriptors(bbdd_imgs,pyramid=True, method="hsv", n_bins=16, save_pkl=True)
-    for method in experiments["methods"]:
-            for n_bins in experiments["n_bins"]:
-                print(f"Computing {method} descriptors with {n_bins} bins pyramid.")
-                compute_spatial_descriptors(bbdd_imgs,pyramid=True, method=method, n_bins=n_bins, save_pkl=True)
+    for n_crop in experiments["n_crops"]:
+        print(f"Computing {n_crop} crops descriptors...")
+        compute_spatial_descriptors(bbdd_imgs,pyramid=False, method="hsv", n_bins=16, save_pkl=True)
+
+    
+                
