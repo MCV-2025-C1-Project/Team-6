@@ -1,13 +1,20 @@
-import numpy as np
-import matplotlib.pyplot as plt
-
-from sklearn.covariance import MinCovDet
-from scipy.stats import chi2
-from color_spaces import rgb_to_hsv
 from typing import List
-from scipy.ndimage import binary_opening, binary_closing, generate_binary_structure
 
-def extract_border_samples(img: np.ndarray, border_width: int = 10) -> np.ndarray:
+import numpy as np
+from scipy.stats import chi2
+import matplotlib.pyplot as plt
+from sklearn.covariance import MinCovDet
+from scipy.ndimage import (binary_opening, 
+                           binary_closing, 
+                           generate_binary_structure,
+                           binary_propagation, 
+                           binary_fill_holes,
+                           median_filter)
+
+from color_spaces import rgb_to_hsv, rgb_to_lab
+
+# TODO: Maybe a more robust way to extract border samples? Remove outliers?
+def extract_border_samples(img: np.ndarray, border_width: int = 20) -> np.ndarray:
     """
     Extracts the border pixels of the image as color samples.
     Args:
@@ -17,8 +24,7 @@ def extract_border_samples(img: np.ndarray, border_width: int = 10) -> np.ndarra
     Returns:
         A 2D array of shape (N, C) containing the color samples from the border pixels.
     """
-
-    top = img[:border_width, :]
+    top = img[:border_width, :] 
     bottom = img[-border_width:, :]
     left = img[:, :border_width]
     right = img[:, -border_width:]
@@ -28,32 +34,44 @@ def extract_border_samples(img: np.ndarray, border_width: int = 10) -> np.ndarra
         left.reshape(-1, img.shape[2]),
         right.reshape(-1, img.shape[2]),
     ])
+
+    max_samples = 2000
+    if len(samples) > max_samples:
+        rng = np.random.default_rng(42)
+        idx = rng.choice(len(samples), size=max_samples, replace=False)
+        samples = samples[idx]
     return samples  # shape (N, C)
 
 
-def remove_background(images: List[np.ndarray], border_width: int = 10):
+def remove_background(images: List[np.ndarray], border_width: int = 10, color_space = "lab",
+                      use_percentile_thresh=True, percentile=99):
 
     masks = []
-
-    for i, img in enumerate(images):
-
+    for _ , img in enumerate(images):
         plt.subplot(1, 2, 1)
         plt.imshow(img)
         plt.title("Original")
 
-        # First simple option: use color samples from the corners of the images
-        # with HS color space (without the value V)
-        hsv = rgb_to_hsv(img)
-        hs = hsv[..., :2] 
+        # Locally smooth the color noise (so we get better results with the masks near the borders!)
+        img_smooth = median_filter(img, size=(3, 3, 1))
 
-        # Normalization (Hue from [0, 360])
-        hs[..., 0] /= 360
+        # Try a*, b* (LAB) or HS (HSV)
+        if color_space == "lab":
+            lab = rgb_to_lab(img_smooth)
+            channels = lab[..., 1:3]
+        
+        else:
+            hsv = rgb_to_hsv(img_smooth)
+            channels = hsv[..., :2] 
 
-        # Border with of the samples 10 pix by default
-        samples = extract_border_samples(hs, border_width=border_width)
+            # Normalization (Hue from [0, 360])
+            channels[..., 0] /= 360
 
-        # Minimum Covariance Determinant for robust estimation of background color distr
-        cov_fraction = 0.75 # Recommended 
+        # Border taken from the samples, 10 pix by default
+        samples = extract_border_samples(channels, border_width=border_width)
+
+        # Minimum Covariance Determinant -> remove a fraction of outliers (more robust than simple covariance)
+        cov_fraction = 0.75
         mcd = MinCovDet(support_fraction=cov_fraction, random_state=0).fit(samples)
         mean = mcd.location_
         cov = mcd.covariance_
@@ -63,34 +81,53 @@ def remove_background(images: List[np.ndarray], border_width: int = 10):
 
         # Computation of Mahalanobis distance for every pixel
         # Distance between a point P and a probability distr (inv-cov)
-        H, W = hs.shape[:2]
-        flat = hs.reshape(-1, 2)
+        H, W = channels.shape[:2]
+        flat = channels.reshape(-1, 2)
 
         # Substraction of the background mean from every pixel color (point-i - mean)
         delta = flat - mean
-        d2 = np.einsum('ij,ij->i', delta @ cov_inv, delta)
-        d2 = d2.reshape(H, W)
+        d2 = np.einsum('ij,ij->i', delta @ cov_inv, delta).reshape(H, W)
 
-        # Threshold using chi-square
-        # 2 degrees of freedom and critical value at 0.01 significance level
-        threshold = chi2.ppf(1-0.01, 2)
-        mask_bg = d2 <= threshold 
+        if use_percentile_thresh:
+            delta_s = samples - mean
+            d2_s = np.einsum('ij,ij->i', delta_s @ cov_inv, delta_s)
+            threshold = np.percentile(d2_s, percentile)
+        else:
+            # More robust...we do not have a perfect Gaussian distribution!
+            threshold = chi2.ppf(1 - 0.01, df=2)
 
-        # p_values = chi2.sf(d2, df=2)  # survival function P(X > D^2)
-        # alpha = 0.01                  # significance level
+        mask_bg = (d2 <= threshold)
 
-        # mask_bg = p_values > alpha 
+        struct = generate_binary_structure(2, 1)  # 4-connected (safer than 8)
+        candidate_bg = binary_opening(mask_bg, structure=struct, iterations=1)
+        candidate_bg = binary_closing(candidate_bg, structure=struct, iterations=2)
 
-        struct = generate_binary_structure(2, 2)
-        mask_bg = binary_opening(mask_bg, structure=struct)
-        mask_bg = binary_closing(mask_bg, structure=struct)
+        # Propagate background only from border
+        # TODO: should we code this from scratch?
+        seed = np.zeros_like(candidate_bg, dtype=bool)
+        bw = border_width
+        seed[:bw, :] = True; seed[-bw:, :] = True
+        seed[:, :bw] = True; seed[:, -bw:] = True
+
+        background = binary_propagation(seed, mask=candidate_bg)
+
+        foreground = ~background
+        foreground = binary_fill_holes(foreground)                 # light cleanup
+        # Optional light smoothing:
+        # foreground = binary_closing(fg, structure=struct, iterations=1)
 
         plt.subplot(1, 2, 2)
-        plt.imshow(~mask_bg, cmap="gray")
+        plt.imshow(foreground, cmap="gray")
         plt.title("Foreground (painting)")
-        plt.show()
-        plt.close()
+        plt.show(); plt.close()
 
-        masks.append(mask_bg.astype(bool))
+        masks.append(foreground.astype(bool))
     
     return masks
+
+# TODO: the algorithm seems quite good, now we need just small ajustments.
+# Also I think it it time to code the pipeline of creating the masks and testing to compute
+# f1, recall, precision...
+
+# TODO:  Do we need the median filter at the beggining? how many iterations for opening and closing?
+# what percentile for thresold or chi2? what cov fraction? test them so we get the best params
