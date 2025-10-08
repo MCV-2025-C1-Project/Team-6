@@ -120,10 +120,10 @@ def best_rotated_mask(original_mask: np.ndarray,
 
     return best
 
-# TODO: Maybe a more robust way to extract border samples? Remove outliers?
+
 def extract_border_samples(img: np.ndarray, border_width: int = 20) -> np.ndarray:
     """
-    Extracts the border pixels of the image as color samples.
+    Extracts border pixels using a boolean mask to avoid double-counting corners.
     Args:
         img: Input image from which to extract border samples.
         border_width: Width of the border to extract (default is 10 pixels).
@@ -131,23 +131,30 @@ def extract_border_samples(img: np.ndarray, border_width: int = 20) -> np.ndarra
     Returns:
         A 2D array of shape (N, C) containing the color samples from the border pixels.
     """
-    top = img[:border_width, :] 
-    bottom = img[-border_width:, :]
-    left = img[:, :border_width]
-    right = img[:, -border_width:]
-    samples = np.vstack([
-        top.reshape(-1, img.shape[2]),
-        bottom.reshape(-1, img.shape[2]),
-        left.reshape(-1, img.shape[2]),
-        right.reshape(-1, img.shape[2]),
-    ])
 
+    h, w, _ = img.shape
+
+    # Mask of booleans
+    mask = np.zeros((h, w), dtype=bool)
+    
+    # Set the border regions to True
+    mask[:border_width, :] = True
+    mask[-border_width:, :] = True
+    mask[:, :border_width] = True
+    mask[:, -border_width:] = True
+    
+    # Mask is gonna be used to grab all border pixels at once
+    samples = img[mask]
+    
+    # Limit the number of samples to a maximum (to avoid too much computation)
     max_samples = 2000
     if len(samples) > max_samples:
         rng = np.random.default_rng(42)
         idx = rng.choice(len(samples), size=max_samples, replace=False)
         samples = samples[idx]
+        
     return samples  # shape (N, C)
+
 
 
 def remove_background(images: List[np.ndarray], border_width: int = 10, color_space = "lab",
