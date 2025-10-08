@@ -13,6 +13,113 @@ from scipy.ndimage import (binary_opening,
 
 from color_spaces import rgb_to_hsv, rgb_to_lab
 
+from scipy.ndimage import rotate as _rotate
+
+def _integral_image(img: np.ndarray) -> np.ndarray:
+    ii = img.astype(np.int64).cumsum(axis=0).cumsum(axis=1)
+    return np.pad(ii, ((1,0),(1,0)), mode='constant')
+
+def _rect_sum(ii: np.ndarray, top: int, left: int, bottom: int, right: int) -> int:
+    return ii[bottom, right] - ii[top, right] - ii[bottom, left] + ii[top, left]
+
+def best_centered_rect_mask(mask: np.ndarray,
+                            min_h: int = 0, min_w: int = 0,
+                            min_frac: float = 0.5,   # ← mínimo relativo (0.5 = mitad)
+                            step: int = 4,
+                            lambda_penalty: float = 1.0,
+                            margin: int = 8) -> np.ndarray:
+    """
+    Devuelve una máscara booleana con el mejor rectángulo *centrado*.
+    Impone tamaño mínimo relativo: alto>=min_frac*H y ancho>=min_frac*W.
+    Score = white - lambda_penalty * black.
+    """
+    assert mask.ndim == 2
+    H, W = mask.shape
+    cy, cx = H // 2, W // 2
+
+    # mínimos absolutos teniendo en cuenta el mínimo relativo
+    min_h = max(min_h, int(np.ceil(min_frac * H)))
+    min_w = max(min_w, int(np.ceil(min_frac * W)))
+
+    # evitar que el margen haga imposible el mínimo
+    usable_h = H - 2 * margin
+    usable_w = W - 2 * margin
+    min_h = min(min_h, max(1, usable_h))
+    min_w = min(min_w, max(1, usable_w))
+
+    ii = _integral_image(mask)
+
+    # máximos respetando márgenes
+    max_h = usable_h
+    max_w = usable_w
+
+    best_score = -np.inf
+    best_t = best_l = best_b = best_r = 0
+
+    for h in range(min_h, max_h + 1, step):
+        half_h = h // 2
+        top    = max(cy - half_h, margin)
+        bottom = min(top + h, H - margin)
+        if bottom - top < min_h:  # por si el centro y el margen lo impiden
+            continue
+
+        for w in range(min_w, max_w + 1, step):
+            half_w = w // 2
+            left   = max(cx - half_w, margin)
+            right  = min(left + w, W - margin)
+            if right - left < min_w:
+                continue
+
+            whites = _rect_sum(ii, top, left, bottom, right)
+            area   = (bottom - top) * (right - left)
+            blacks = area - whites
+            score  = whites - lambda_penalty * blacks
+
+            if score > best_score:
+                best_score = score
+                best_t, best_l, best_b, best_r = top, left, bottom, right
+
+    rect_mask = np.zeros_like(mask, dtype=bool)
+    rect_mask[best_t:best_b, best_l:best_r] = True
+    return rect_mask
+
+def best_rotated_mask(original_mask: np.ndarray,
+                      rect_mask: np.ndarray,
+                      angle_limit: float = 30.0,
+                      angle_step: float = 1.0,
+                      lambda_penalty: float = 1.2) -> np.ndarray:
+    """
+    Dado un rectángulo centrado (rect_mask), busca la mejor rotación ±angle_limit
+    que maximiza whites - lambda_penalty*blacks respecto a original_mask.
+
+    original_mask : (H,W) bool  -> máscara “ground” (la salida Mahalanobis antes del rectángulo)
+    rect_mask     : (H,W) bool  -> máscara del rectángulo centrado
+    """
+    assert original_mask.shape == rect_mask.shape
+    orig = original_mask.astype(bool)
+    base = rect_mask.astype(bool)
+
+    best_score = -np.inf
+    best = base
+
+    angles = np.arange(-angle_limit, angle_limit + 1e-9, angle_step)
+    for ang in angles:
+        # rotación alrededor del centro de la imagen; sin cambiar tamaño
+        cand = _rotate(base.astype(np.uint8), ang, reshape=False, order=0, mode="constant", cval=0).astype(bool)
+
+        area   = int(cand.sum())
+        if area == 0:
+            continue
+        whites = int(np.logical_and(orig, cand).sum())
+        blacks = area - whites
+        score  = whites - lambda_penalty * blacks
+
+        if score > best_score:
+            best_score = score
+            best = cand
+
+    return best
+
 # TODO: Maybe a more robust way to extract border samples? Remove outliers?
 def extract_border_samples(img: np.ndarray, border_width: int = 20) -> np.ndarray:
     """
@@ -98,7 +205,8 @@ def remove_background(images: List[np.ndarray], border_width: int = 10, color_sp
 
         mask_bg = (d2 <= threshold)
 
-        struct = generate_binary_structure(2, 1)  # 4-connected (safer than 8)
+        #struct = generate_binary_structure(2, 1)  # 4-connected (safer than 8) // Like a cross
+        struct = np.ones((5, 5), dtype=bool)   # 5x5 (cuadrado)
         candidate_bg = binary_opening(mask_bg, structure=struct, iterations=1)
         candidate_bg = binary_closing(candidate_bg, structure=struct, iterations=2)
 
@@ -112,9 +220,12 @@ def remove_background(images: List[np.ndarray], border_width: int = 10, color_sp
         background = binary_propagation(seed, mask=candidate_bg)
 
         foreground = ~background
-        foreground = binary_fill_holes(foreground)                 # light cleanup
+        org_mask = binary_fill_holes(foreground)                 # light cleanup
         # Optional light smoothing:
         # foreground = binary_closing(fg, structure=struct, iterations=1)
+
+        rect_mask = best_centered_rect_mask(foreground, min_frac=0.5, step=4, lambda_penalty=1.2)
+        foreground = best_rotated_mask(org_mask, rect_mask, angle_limit=30, angle_step= 1, lambda_penalty=1.2)
 
         plt.subplot(1, 2, 2)
         plt.imshow(foreground, cmap="gray")
