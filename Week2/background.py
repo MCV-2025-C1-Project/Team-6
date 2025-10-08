@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 
 import numpy as np
 from scipy.stats import chi2
@@ -6,14 +6,18 @@ import matplotlib.pyplot as plt
 from sklearn.covariance import MinCovDet
 from scipy.ndimage import (binary_opening, 
                            binary_closing, 
-                           generate_binary_structure,
                            binary_propagation, 
                            binary_fill_holes,
                            median_filter)
 
-from color_spaces import rgb_to_hsv, rgb_to_lab
-
 from scipy.ndimage import rotate as _rotate
+
+from color_spaces import rgb_to_hsv, rgb_to_lab
+from params import background_experiments
+from metrics import f1_score, precision, recall, intersection_over_union
+
+# we'll use it in remove_background, avoid reallocating it every time
+STRUCT = np.ones((5, 5), dtype=bool) 
 
 def _integral_image(img: np.ndarray) -> np.ndarray:
     ii = img.astype(np.int64).cumsum(axis=0).cumsum(axis=1)
@@ -23,7 +27,8 @@ def _rect_sum(ii: np.ndarray, top: int, left: int, bottom: int, right: int) -> i
     return ii[bottom, right] - ii[top, right] - ii[bottom, left] + ii[top, left]
 
 def best_centered_rect_mask(mask: np.ndarray,
-                            min_h: int = 0, min_w: int = 0,
+                            min_h: int = 0, 
+                            min_w: int = 0,
                             min_frac: float = 0.5,   # ← mínimo relativo (0.5 = mitad)
                             step: int = 4,
                             lambda_penalty: float = 1.0,
@@ -120,8 +125,9 @@ def best_rotated_mask(original_mask: np.ndarray,
 
     return best
 
-# TODO: Maybe a more robust way to extract border samples? Remove outliers?
-def extract_border_samples(img: np.ndarray, border_width: int = 20) -> np.ndarray:
+def extract_border_samples(img: np.ndarray, 
+                           border_width: int = 20, 
+                           max_samples = 2000) -> np.ndarray:
     """
     Extracts the border pixels of the image as color samples.
     Args:
@@ -142,103 +148,156 @@ def extract_border_samples(img: np.ndarray, border_width: int = 20) -> np.ndarra
         right.reshape(-1, img.shape[2]),
     ])
 
-    max_samples = 2000
     if len(samples) > max_samples:
         rng = np.random.default_rng(42)
         idx = rng.choice(len(samples), size=max_samples, replace=False)
         samples = samples[idx]
     return samples  # shape (N, C)
 
+def remove_background(img: np.ndarray, 
+                      method: dict):
 
-def remove_background(images: List[np.ndarray], border_width: int = 10, color_space = "lab",
-                      use_percentile_thresh=True, percentile=99):
+    # Locally smooth the color noise (so we get better results with the masks near the borders!)
+    img_smooth = median_filter(img, size=(3, 3, 1))
 
-    masks = []
-    for _ , img in enumerate(images):
-        plt.subplot(1, 2, 1)
-        plt.imshow(img)
-        plt.title("Original")
-
-        # Locally smooth the color noise (so we get better results with the masks near the borders!)
-        img_smooth = median_filter(img, size=(3, 3, 1))
-
-        # Try a*, b* (LAB) or HS (HSV)
-        if color_space == "lab":
-            lab = rgb_to_lab(img_smooth)
-            channels = lab[..., 1:3]
-        
-        else:
-            hsv = rgb_to_hsv(img_smooth)
-            channels = hsv[..., :2] 
-
-            # Normalization (Hue from [0, 360])
-            channels[..., 0] /= 360
-
-        # Border taken from the samples, 10 pix by default
-        samples = extract_border_samples(channels, border_width=border_width)
-
-        # Minimum Covariance Determinant -> remove a fraction of outliers (more robust than simple covariance)
-        cov_fraction = 0.75
-        mcd = MinCovDet(support_fraction=cov_fraction, random_state=0).fit(samples)
-        mean = mcd.location_
-        cov = mcd.covariance_
-
-        # Moore-Penrose pseudo-inverse to avoid problems such as covariance matrix being singular (non-invertible)
-        cov_inv = np.linalg.pinv(cov)
-
-        # Computation of Mahalanobis distance for every pixel
-        # Distance between a point P and a probability distr (inv-cov)
-        H, W = channels.shape[:2]
-        flat = channels.reshape(-1, 2)
-
-        # Substraction of the background mean from every pixel color (point-i - mean)
-        delta = flat - mean
-        d2 = np.einsum('ij,ij->i', delta @ cov_inv, delta).reshape(H, W)
-
-        if use_percentile_thresh:
-            delta_s = samples - mean
-            d2_s = np.einsum('ij,ij->i', delta_s @ cov_inv, delta_s)
-            threshold = np.percentile(d2_s, percentile)
-        else:
-            # More robust...we do not have a perfect Gaussian distribution!
-            threshold = chi2.ppf(1 - 0.01, df=2)
-
-        mask_bg = (d2 <= threshold)
-
-        #struct = generate_binary_structure(2, 1)  # 4-connected (safer than 8) // Like a cross
-        struct = np.ones((5, 5), dtype=bool)   # 5x5 (cuadrado)
-        candidate_bg = binary_opening(mask_bg, structure=struct, iterations=1)
-        candidate_bg = binary_closing(candidate_bg, structure=struct, iterations=2)
-
-        # Propagate background only from border
-        # TODO: should we code this from scratch?
-        seed = np.zeros_like(candidate_bg, dtype=bool)
-        bw = border_width
-        seed[:bw, :] = True; seed[-bw:, :] = True
-        seed[:, :bw] = True; seed[:, -bw:] = True
-
-        background = binary_propagation(seed, mask=candidate_bg)
-
-        foreground = ~background
-        org_mask = binary_fill_holes(foreground)                 # light cleanup
-        # Optional light smoothing:
-        # foreground = binary_closing(fg, structure=struct, iterations=1)
-
-        rect_mask = best_centered_rect_mask(foreground, min_frac=0.5, step=4, lambda_penalty=1.2)
-        foreground = best_rotated_mask(org_mask, rect_mask, angle_limit=30, angle_step= 1, lambda_penalty=1.2)
-
-        plt.subplot(1, 2, 2)
-        plt.imshow(foreground, cmap="gray")
-        plt.title("Foreground (painting)")
-        plt.show(); plt.close()
-
-        masks.append(foreground.astype(bool))
+    # Try a*, b* (LAB) or HS (HSV)
+    if method["color_space"] == "lab":
+        lab = rgb_to_lab(img_smooth)
+        channels = lab[..., 1:3]
     
+    else:
+        hsv = rgb_to_hsv(img_smooth)
+        channels = hsv[..., :2] 
+
+        # Normalization (Hue from [0, 360])
+        channels[..., 0] /= 360
+
+    # Border taken from the samples, 10 pix by default
+    samples = extract_border_samples(channels, border_width=method["border_width"])
+
+    # Minimum Covariance Determinant -> remove a fraction of outliers (more robust than simple covariance)
+    cov_fraction = method["cov_fraction"]
+    mcd = MinCovDet(support_fraction=cov_fraction, random_state=0).fit(samples)
+    mean = mcd.location_
+    cov = mcd.covariance_
+
+    # Moore-Penrose pseudo-inverse to avoid problems such as covariance matrix being singular (non-invertible)
+    cov_inv = np.linalg.pinv(cov)
+
+    # Computation of Mahalanobis distance for every pixel
+    # Distance between a point P and a probability distr (inv-cov)
+    H, W = channels.shape[:2]
+    flat = channels.reshape(-1, 2)
+
+    # Substraction of the background mean from every pixel color (point-i - mean)
+    delta = flat - mean
+    d2 = np.einsum('ij,ij->i', delta @ cov_inv, delta).reshape(H, W)
+
+    if method["use_percentile_thresh"]:
+        # More robust...we do not have a perfect Gaussian distribution!
+        delta_s = samples - mean
+        d2_s = np.einsum('ij,ij->i', delta_s @ cov_inv, delta_s)
+        threshold = np.percentile(d2_s, method["percentile"])
+    else:
+        threshold = chi2.ppf(1 - float(1-method["percentile"]), df=2)
+
+    mask_bg = (d2 <= threshold)
+
+    #struct = generate_binary_structure(2, 1)  # 4-connected (safer than 8) // Like a cross
+    candidate_bg = binary_opening(mask_bg, structure=STRUCT, iterations=1)
+    candidate_bg = binary_closing(candidate_bg, structure=STRUCT, iterations=2)
+
+    # Propagate background only from border
+    # TODO: should we code this from scratch?
+    seed = np.zeros_like(candidate_bg, dtype=bool)
+    bw = method["border_width"]
+    # Take the edges as the seed
+    seed[:bw, :] = True; seed[-bw:, :] = True
+    seed[:, :bw] = True; seed[:, -bw:] = True
+
+    background = binary_propagation(seed, mask=candidate_bg)
+
+    foreground = ~background
+    org_mask = binary_fill_holes(foreground) # light cleanup
+
+    rect_mask = best_centered_rect_mask(foreground, min_frac=method["min_frac"], step=method["step"], lambda_penalty=method["lambda_penalty"])
+    foreground = best_rotated_mask(org_mask, rect_mask, angle_limit=method["angle_limit"], angle_step=method["angle_step"], lambda_penalty=method["lambda_penalty"])
+
+    return foreground.astype(bool)
+
+def _to_bool_mask(arr: np.ndarray) -> np.ndarray:
+    """
+    Convert any array to H,W binary mask.
+    """
+    if arr.ndim == 3:
+        arr = arr[..., 0]
+    # binarize: treat >127 (or >0) as foreground
+    if arr.dtype == bool:
+        return arr
+    return (arr > 127)
+
+def _evaluate_method(images: List[np.ndarray], gts: List[np.ndarray], desc: Dict[str, Any]):
+    n = min(len(images), len(gts))
+    preds = [remove_background(images[i], desc).astype(bool) for i in range(n)]
+    preds = [_to_bool_mask(p) for p in preds]
+    gts   = [_to_bool_mask(gts[i]) for i in range(n)]
+
+    ious = [intersection_over_union(gt, pr) for gt, pr in zip(gts, preds)]
+    f1s  = [f1_score(gt, pr)                for gt, pr in zip(gts, preds)]
+    pres = [precision(gt, pr)               for gt, pr in zip(gts, preds)]
+    recs = [recall(gt, pr)                  for gt, pr in zip(gts, preds)]
+
+    scores = {
+        "iou": float(np.mean(ious)) if ious else 0.0,
+        "f1":  float(np.mean(f1s))  if f1s  else 0.0,
+        "precision": float(np.mean(pres)) if pres else 0.0,
+        "recall":    float(np.mean(recs)) if recs else 0.0,
+    }
+    return scores, preds
+
+def find_best_mask(images: List[np.ndarray], masks_gt: List[np.ndarray]) -> Dict[str, Any]:
+    best = None
+    results = []
+
+    for desc in background_experiments:
+        print(f"Using method: {desc}")
+        scores, _ = _evaluate_method(images, masks_gt, desc)
+        results.append({"method": desc, "scores": scores})
+        if (best is None) or (scores["iou"] > best["scores"]["iou"]) or \
+           (np.isclose(scores["iou"], best["scores"]["iou"]) and scores["f1"] > best["scores"]["f1"]):
+            best = {"method": desc, "scores": scores}
+        print(f"Score: {best['scores']}")
+
+    with open("./Week2/background_best_results.txt", "w") as f:
+        f.write("Best method:\n")
+        for k, v in best["method"].items():
+            f.write(f"  {k}: {v}\n")
+        f.write("\nBest scores:\n")
+        for k, v in best["scores"].items():
+            f.write(f"  {k}: {v:.4f}\n")
+
+    return {
+        "best_method": best["method"],
+        "best_scores": best["scores"]
+    }
+
+def apply_best_method_and_plot(
+    images: List[np.ndarray],
+    best_method: Dict[str, Any]):
+    """
+    Applies the best method and plots Original vs Mask, returns masks.
+    """
+    masks = [remove_background(img, best_method).astype(bool) for img in images]
+    n = len(masks)
+
+    for i in range(n):
+        plt.figure(figsize=(8, 4))
+        plt.subplot(1, 2, 1); plt.imshow(images[i]); plt.title("Original"); plt.axis("off")
+        plt.subplot(1, 2, 2); plt.imshow(masks[i], cmap="gray"); plt.title("Mask"); plt.axis("off")
+        plt.tight_layout(); plt.show(); plt.close()
+
     return masks
-
-# TODO: the algorithm seems quite good, now we need just small ajustments.
-# Also I think it it time to code the pipeline of creating the masks and testing to compute
-# f1, recall, precision...
-
-# TODO:  Do we need the median filter at the beggining? how many iterations for opening and closing?
-# what percentile for thresold or chi2? what cov fraction? test them so we get the best params
+    
+# TODO: With the proposed posible method, all  results are the same! ,maybe we need to change some other 
+# params. also at the end we'll need just to apply best method to the images, refactor this.
+# Finally, could perform a real grid search, now we just try options

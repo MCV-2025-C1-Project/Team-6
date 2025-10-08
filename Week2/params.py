@@ -21,7 +21,12 @@ best_config2 = {
     "metric": "l1"
 }
 
-background_experiments = {
-    "struct" = [(3,3), (4,4), (5,5)]
-    #TODO: Add wanted experiments for gridsearch
-}
+# Maybe it would be nicer to have a real grid search...
+background_experiments = [
+    {"color_space": "lab", "border_width": 10, "use_percentile_thresh": True,  "percentile": 97, "cov_fraction": 0.75, "angle_limit": 15, "angle_step": 1, "lambda_penalty": 1.0, "min_frac": 0.5, "step": 4},
+    {"color_space": "lab", "border_width": 20, "use_percentile_thresh": True,  "percentile": 99, "cov_fraction": 0.9,"angle_limit": 30, "angle_step": 1, "lambda_penalty": 1.2, "min_frac": 0.5, "step": 4},
+    {"color_space": "hsv", "border_width": 10, "use_percentile_thresh": True,  "percentile": 99, "cov_fraction": 0.75,"angle_limit": 30, "angle_step": 1, "lambda_penalty": 1.0, "min_frac": 0.5, "step": 4},
+    {"color_space": "hsv", "border_width": 20, "use_percentile_thresh": True,  "percentile": 97, "cov_fraction": 0.9,"angle_limit": 15, "angle_step": 1, "lambda_penalty": 1.2, "min_frac": 0.5, "step": 4},
+    {"color_space": "lab", "border_width": 10, "use_percentile_thresh": False,                   "cov_fraction": 0.75,"angle_limit": 15, "angle_step": 2, "lambda_penalty": 1.0, "min_frac": 0.8, "step": 4},
+    {"color_space": "hsv", "border_width": 20, "use_percentile_thresh": False,                   "cov_fraction": 0.9,"angle_limit": 30, "angle_step": 2, "lambda_penalty": 1.2, "min_frac": 0.8, "step": 4},
+]
