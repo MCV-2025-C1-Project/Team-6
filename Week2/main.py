@@ -2,24 +2,26 @@ import argparse
 from pathlib import Path
 
 from io_utils import read_images
-from background import remove_background
+from background import find_best_mask, apply_best_method_and_plot
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 
 def main(data_dir: Path) -> None:
 
-    # Read query images to remove background
+    # Read query images to remove background (just .jpg)
     images = read_images(data_dir)
     
     # Read ground truths (extension is .png)
-    ground_truth = read_images(data_dir, extension="png")
+    masks = read_images(data_dir, extension="png")
 
-    # FUNCTION OF REMOVE BACKGROUND
-    remove_background(images)
+    # 'Grid Search' - Find best method
+    best_solution = find_best_mask(images, masks)
 
-    # TODO: EVALUATE THE SEGMENTATION WITH THE GROUND TRUTH
-
+    # Find masks and plot with best method
+    masks = apply_best_method_and_plot(
+        images,
+        best_solution["best_method"])
 
 if __name__ == "__main__":
 
