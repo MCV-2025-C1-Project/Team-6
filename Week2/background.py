@@ -224,7 +224,7 @@ def remove_background(images: List[np.ndarray], border_width: int = 10, color_sp
         # Optional light smoothing:
         # foreground = binary_closing(fg, structure=struct, iterations=1)
 
-        rect_mask = best_centered_rect_mask(foreground, min_frac=0.5, step=4, lambda_penalty=1.2)
+        rect_mask = best_centered_rect_mask(org_mask, min_frac=0.5, step=4, lambda_penalty=1.2)
         foreground = best_rotated_mask(org_mask, rect_mask, angle_limit=30, angle_step= 1, lambda_penalty=1.2)
 
         plt.subplot(1, 2, 2)
