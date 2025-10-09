@@ -34,9 +34,8 @@ def main(data_dir: Path, generate_plots=False) -> None:
         for n_crop in n_crops:
             for method in methods:
                 for n_bins in bins:
-                    bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / f"{method}_{n_bins}bins_{n_crop}crops_noWeights_descriptors.pkl")
+                    bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / f"{method}_{n_bins}bins_{n_crop}crops_noWeights_True_weights_descriptors.pkl")
                     img_descriptors = compute_spatial_descriptors(images, method=method, n_bins=n_bins, save_pkl=False, n_crops=n_crop)
-
                     for metric in metrics:
                         print(f"Computing similarities using {metric} metric.")
                         similarities = compute_similarities(img_descriptors, bbdd_descriptors, metric=metric)
@@ -80,7 +79,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
                 print()
 
             # Build matrices for each method-metric pair across bins and crops
-        matrix = False
+        matrix = True
         if matrix:
             for method in methods:
                 for metric in metrics:
@@ -120,7 +119,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
 
                     plt.tight_layout()
                     plt.savefig(
-                        Path(__file__).resolve().parent / "outputs" / f"map{k}_matrix_{method}_{metric}_noWeights.png"
+                        Path(__file__).resolve().parent / "outputs" / f"map{k}_matrix_{method}_{metric}_TrueWeights.png"
                     )
                     plt.close()
         else:
@@ -177,7 +176,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
 
                     plt.tight_layout()
                     plt.savefig(
-                        Path(__file__).resolve().parent / "outputs" / f"map{k}_function_crops_xaxis_{method}_{metric}_noWeights.png"
+                        Path(__file__).resolve().parent / "outputs" / f"map{k}_function_crops_xaxis_{method}_{metric}__TrueWeights.png"
                     )
                     plt.close()
 
