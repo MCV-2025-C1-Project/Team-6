@@ -41,6 +41,6 @@ Team-6/
 ├── WeekX/
 │   ├── qsdY_wX/              # Development set Y for Week X
 │   ├── qstY_wX/              # Test set Y for Week X
-│   ├── main.py               # Main script for Week X
+│   ├── src/                  # Code for Week X
 │   └── README.md             # Explanation for Week X code
 ```
