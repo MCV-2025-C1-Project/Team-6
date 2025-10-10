@@ -7,32 +7,41 @@
 4. [Run the program](#run-the-program)
 
 ## [Introduction](#introduction)
-For this Week's implementation we upgrade Week's 1 solution with two main things:
-1) First, we implement spatial descriptors moreover of color-based descriptors.
-2) The painintgs are segmented via modelling the background color distribution, letting
-the descriptor focus mainly on the painintg.
+In **Week 2**, we build upon the Week 1 solution with two key upgrades:
+
+1. **Spatial descriptors** are added on top of color-based descriptors to capture spatial layout information of each painting.
+2. **Background segmentation** models the background color distribution so the descriptor focuses primarily on the painting.
+
+These changes aim to improve retrieval robustness and the semantic relevance of descriptors.
+
 
 ## [Project Structure and overview](#project-structure-and-overview)
-This section provides a brief description of each script in the `src` folder:
+The main code lives in the `src/` directory. Below is a brief description of each component:
 
-**`background.py`**
-Methods used for background segmentation and its evaluation.
+### Core Scripts
 
-**`evaluate_crop_descriptors.py`**
-Evaluates retrieval on query images by loading precomputed BBDD descriptors, computing query descriptors and ranking with multiple metrics for crop-based descriptors.
+- **`background.py`**  
+  Methods for background segmentation and utilities to evaluate segmentation quality.
 
-**`evaluate_piramid_descriptors.py`**
-Evaluates retrieval on query images by loading precomputed BBDD descriptors, computing query descriptors and ranking with multiple metrics for pyramid-based descriptors.
+- **`evaluate_crop_descriptors.py`**  
+  Evaluates retrieval by experimenting with cropped query images: loads precomputed BBDD descriptors, computes query descriptors, and ranks results with multiple distance metrics.
 
-**`params.py`**
-Contains experiments to test and the best configurations found.
+- **`evaluate_piramid_descriptors.py`**  
+  Evaluates retrieval using spatial *pyramid* descriptors.
 
-**`piramid_descriptors.py`**
-Computes spatial descriptors based on histograms.
+- **`params.py`**  
+  Experiments and best configurations discovered during testing.
+
+- **`piramid_descriptors.py`**  
+  Computes spatial (pyramid-based) descriptors from color histograms at multiple spatial levels.
 
 Moreover there is two extra folders `evaluations` and `utils`:
-1) **evaluations** contains all those scripts used for computing metrics and distances for evaluating the descriptors.
-2) **utils** contains utils for converting between color spaces, compute and plot histograms, read and write files or plot results.
+
+- **`evaluations/`**  
+  Functions to compute metrics, distances, and overall evaluation results.
+
+- **`utils/`**  
+  Helpers for color-space conversions, histogram computation/plotting, I/O, and visualization.
 
 Finally, the code is orchestarted by **`main.py`**:
 - **`main.py`**  
