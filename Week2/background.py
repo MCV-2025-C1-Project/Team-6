@@ -13,6 +13,7 @@ from scipy.ndimage import (binary_opening,
 from scipy.ndimage import rotate as _rotate
 
 from color_spaces import rgb_to_hsv, rgb_to_lab
+<<<<<<< HEAD
 from params import create_grid_search_experiments
 from metrics import f1_score, precision, recall, intersection_over_union
 
@@ -129,7 +130,7 @@ def extract_border_samples(img: np.ndarray,
                            border_width: int = 20, 
                            max_samples = 2000) -> np.ndarray:
     """
-    Extracts the border pixels of the image as color samples.
+    Extracts border pixels using a boolean mask to avoid double-counting corners.
     Args:
         img: Input image from which to extract border samples.
         border_width: Width of the border to extract (default is 10 pixels).
@@ -152,6 +153,7 @@ def extract_border_samples(img: np.ndarray,
         rng = np.random.default_rng(42)
         idx = rng.choice(len(samples), size=max_samples, replace=False)
         samples = samples[idx]
+        
     return samples  # shape (N, C)
 
 def remove_background(img: np.ndarray, 
@@ -199,6 +201,7 @@ def remove_background(img: np.ndarray,
         d2_s = np.einsum('ij,ij->i', delta_s @ cov_inv, delta_s)
         threshold = np.percentile(d2_s, method["percentile"])
     else:
+<<<<<<< HEAD
         threshold = chi2.ppf(method["percentile"] / 100.0, df=2)
 
     mask_bg = (d2 <= threshold)
@@ -220,6 +223,7 @@ def remove_background(img: np.ndarray,
     foreground = ~background
     org_mask = binary_fill_holes(foreground) # light cleanup
 
+<<<<<<< HEAD
     if method["use_best_square"]:
         rect_mask = best_centered_rect_mask(org_mask, min_frac=method["min_frac"], step=method["step"], lambda_penalty=method["lambda_penalty"])
         org_mask = best_rotated_mask(org_mask, rect_mask, angle_limit=method["angle_limit"], lambda_penalty=method["lambda_penalty"])
@@ -260,6 +264,7 @@ def find_best_mask(images: List[np.ndarray], masks_gt: List[np.ndarray]) -> Dict
     best = None
     results = []
 
+<<<<<<< HEAD
     background_experiments = create_grid_search_experiments();
 
     for desc_num, desc in enumerate(background_experiments, start=1):
@@ -269,6 +274,7 @@ def find_best_mask(images: List[np.ndarray], masks_gt: List[np.ndarray]) -> Dict
         if (best is None) or (scores["iou"] > best["scores"]["iou"]) or \
            (np.isclose(scores["iou"], best["scores"]["iou"]) and scores["f1"] > best["scores"]["f1"]):
             best = {"method": desc, "scores": scores}
+<<<<<<< HEAD
         print(f"Score: {scores}")
 
     with open("./Week2/background_best_results.txt", "w") as f:
@@ -279,6 +285,7 @@ def find_best_mask(images: List[np.ndarray], masks_gt: List[np.ndarray]) -> Dict
         for k, v in best["scores"].items():
             f.write(f"  {k}: {v:.4f}\n")
 
+<<<<<<< HEAD
     print(f"Best method: {best['method']}")
     print(f"Best scores: {best['scores']}")
 

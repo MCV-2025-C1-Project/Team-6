@@ -15,7 +15,6 @@ def mean_average_precision(predictions: np.ndarray, gt: List[List[int]], k=10) -
     Returns:
         float: The mean Average Precision at K score.
     """
-
     top_k_predictions = predictions[:, :k]
 
     map_score = 0

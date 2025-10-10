@@ -1,10 +1,11 @@
 import argparse
-
 from pathlib import Path
+
 from io_utils import read_images
 from background import find_best_mask, apply_best_method_and_plot
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+
 
 def main(data_dir: Path) -> None:
 
