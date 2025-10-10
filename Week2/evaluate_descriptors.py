@@ -1,22 +1,25 @@
 """Evaluates retrieval on query images by loading precomputed BBDD descriptors, computing query descriptors
 and ranking with multiple metrics."""
-import argparse
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-
-from params import experiments
-from metrics import mean_average_precision
 from pathlib import Path
+import argparse
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 from io_utils import read_images, read_pickle
+from metrics import mean_average_precision
+from params import experiments
 from piramid_descriptors import compute_spatial_descriptors
-from similarity_measures import compute_similarities
 from plots import plot_descriptors_difference, plot_query_results
+from similarity_measures import compute_similarities
+
 
 def main(data_dir: Path, generate_plots=False) -> None:
+    """Run CBIR evaluation over a grid of (method, n_bins, n_crops, metric) and k-values."""
 
     # Create dir for outputs
-    os.makedirs(Path(__file__).resolve().parent / 'outputs', exist_ok=True)
+    out_dir = Path(__file__).resolve().parent / 'outputs'
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # Read query images
     images = read_images(data_dir) 
@@ -27,8 +30,11 @@ def main(data_dir: Path, generate_plots=False) -> None:
     bins = experiments["n_bins"]
     k_values = experiments["k_values"]
     n_crops = experiments["n_crops"]
+
+    # Load ground truth
+    gt = read_pickle(data_dir / "gt_corresps.pkl")
+
     # Evaluation
-    
     for k in k_values:
         mapk_scores = {}
         for n_crop in n_crops:
@@ -47,9 +53,6 @@ def main(data_dir: Path, generate_plots=False) -> None:
                         # Extract the best k results
                         results_indices = indices[:, :k]
                         results_similarities = sorted_sims[:, :k]
-
-                        # Load ground truth
-                        gt = read_pickle(data_dir / "gt_corresps.pkl")
 
                         # Print some results
                         print(f"Most similar images for each query at K={k}:")
@@ -78,7 +81,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
                     print()
                 print()
 
-            # Build matrices for each method-metric pair across bins and crops
+        # Build matrices for each method-metric pair across bins and crops
         matrix = True
         if matrix:
             for method in methods:
@@ -195,7 +198,6 @@ def main(data_dir: Path, generate_plots=False) -> None:
                 f.write(f"{key}: {value:.4f}\n")
 
 if __name__ == "__main__":
-
     # Parse data directory argument (by default the dev set is used)
     parser = argparse.ArgumentParser()
     parser.add_argument(
