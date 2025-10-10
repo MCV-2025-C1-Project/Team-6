@@ -4,10 +4,12 @@ from typing import List
 import numpy as np
 from pathlib import Path
 
-from src.params import experiments
+from src.params import descriptor_experiments as experiments
 from utils.color_spaces import rgb_to_hsv
 from utils.histogram import histogram
 from utils.io_utils import write_pickle, read_images
+
+
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -127,12 +129,13 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
             else:
                 raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
             
+            level_descs.append(initial_descs)
             
             
         for img in range(img_count):
             level_descs_img = []
             for level in range( len(pyramid_levels)):
-                level_descs_img.append(level_descs[img + img_count * level])
+                level_descs_img.append(level_descs[level][img])
             descs.append(np.concatenate(level_descs_img, axis=0))
         
         if save_pkl:
@@ -207,9 +210,12 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
 # Compute descriptors for benchmark
 if __name__=="__main__":
     bbdd_imgs = read_images(SCRIPT_DIR.parent / "BBDD")
-    for n_crop in experiments["n_crops"]:
+    for piramid in experiments["pyramid_levels"]:
+        print(f"Computing pyramid {piramid} descriptors...")
+        compute_spatial_descriptors(bbdd_imgs, method="hsv", pyramid=True, pyramid_levels=piramid, n_bins=16, save_pkl=True)
+    """ for n_crop in experiments["n_crops"]:
         print(f"Computing {n_crop} crops descriptors with center weights...")
-        compute_spatial_descriptors(bbdd_imgs, method="hsv",n_crops=n_crop,center_weights=True ,n_bins=16, save_pkl=True)
+        compute_spatial_descriptors(bbdd_imgs, method="hsv",n_crops=n_crop,center_weights=True ,n_bins=16, save_pkl=True) """
 
     
                 

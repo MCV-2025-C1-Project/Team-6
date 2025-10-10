@@ -33,7 +33,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
 
     # Load ground truth
     gt = read_pickle(data_dir / "gt_corresps.pkl")
-
+    
     # Evaluation
     for k in k_values:
         mapk_scores = {}
