@@ -11,6 +11,15 @@ descriptor_experiments = {
 
 }
 
+best_config_descriptors = {
+    "k_values": 1,
+    "color_space": "hsv", 
+    "n_bins": 16,
+    "metric": "l1",
+    "n_crops": 23,
+    "pyramid_levels": [1,10,20]
+}
+
 best_config1 = {
     "method": "hsv",
     "n_bins": 16,
