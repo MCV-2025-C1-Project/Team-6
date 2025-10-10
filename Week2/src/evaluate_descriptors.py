@@ -6,12 +6,12 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
-from io_utils import read_images, read_pickle
-from metrics import mean_average_precision
-from params import experiments
-from piramid_descriptors import compute_spatial_descriptors
-from plots import plot_descriptors_difference, plot_query_results
-from similarity_measures import compute_similarities
+from utils.io_utils import read_images, read_pickle
+from evaluations.metrics import mean_average_precision
+from src.params import experiments
+from src.piramid_descriptors import compute_spatial_descriptors
+from utils.plots import plot_descriptors_difference, plot_query_results
+from evaluations.similarity_measures import compute_similarities
 
 
 def main(data_dir: Path, generate_plots=False) -> None:

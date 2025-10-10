@@ -1,8 +1,9 @@
 import argparse
 from pathlib import Path
 
-from io_utils import read_images
-from background import find_best_mask, apply_best_method_and_plot
+from utils.io_utils import read_images
+from src.background import find_best_mask, apply_best_method_and_plot
+from src.params import segmentation_experiments, best_config_segmentation
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -15,13 +16,13 @@ def main(data_dir: Path) -> None:
     # Read ground truths (extension is .png)
     masks = read_images(data_dir, extension="png")
 
-    # 'Grid Search' - Find best method
-    best_solution = find_best_mask(images, masks)
+    # 'Grid Search' - Find best method (already found!)
+    # best_solution = find_best_mask(images, masks, segmentation_experiments)
 
     # Find masks and plot with best method
-    masks = apply_best_method_and_plot(
+    _ = apply_best_method_and_plot(
         images,
-        best_solution["best_method"])
+        best_config_segmentation)
 
 if __name__ == "__main__":
 

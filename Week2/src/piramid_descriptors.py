@@ -4,10 +4,10 @@ from typing import List
 import numpy as np
 from pathlib import Path
 
-from params import experiments
-from color_spaces import rgb_to_hsv
-from histogram import histogram
-from io_utils import write_pickle, read_images
+from src.params import experiments
+from utils.color_spaces import rgb_to_hsv
+from utils.histogram import histogram
+from utils.io_utils import write_pickle, read_images
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent

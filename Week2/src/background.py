@@ -1,4 +1,6 @@
 from typing import List, Dict, Any
+import itertools
+from pathlib import Path
 
 import numpy as np
 from scipy.stats import chi2
@@ -12,14 +14,17 @@ from scipy.ndimage import (binary_opening,
 
 from scipy.ndimage import rotate as _rotate
 
-from color_spaces import rgb_to_hsv, rgb_to_lab
-from params import create_grid_search_experiments
-from metrics import f1_score, precision, recall, intersection_over_union
+from utils.color_spaces import rgb_to_hsv, rgb_to_lab
+from evaluations.metrics import f1_score, precision, recall, intersection_over_union
 
-# we'll use it in remove_background, avoid reallocating it every time
+# we'll use it in remove_background(), avoid reallocating memory for it every time
 STRUCT = np.ones((5, 5), dtype=bool) 
+SCRIPT_DIR = Path(__file__).resolve().parent
 
+# Use methods _integral_image() and _rect_sum() to compute local averages and filters. 
+# Much faster than region-based sum!!
 def _integral_image(img: np.ndarray) -> np.ndarray:
+    """Builds a sum-area table."""
     ii = img.astype(np.int64).cumsum(axis=0).cumsum(axis=1)
     return np.pad(ii, ((1,0),(1,0)), mode='constant')
 
@@ -29,24 +34,24 @@ def _rect_sum(ii: np.ndarray, top: int, left: int, bottom: int, right: int) -> i
 def best_centered_rect_mask(mask: np.ndarray,
                             min_h: int = 0, 
                             min_w: int = 0,
-                            min_frac: float = 0.5,   # ← mínimo relativo (0.5 = mitad)
+                            min_frac: float = 0.5,   # relative minimum (0.5 = half)
                             step: int = 4,
                             lambda_penalty: float = 1.0,
                             margin: int = 8) -> np.ndarray:
     """
-    Devuelve una máscara booleana con el mejor rectángulo *centrado*.
-    Impone tamaño mínimo relativo: alto>=min_frac*H y ancho>=min_frac*W.
-    Score = white - lambda_penalty * black.
+    Returns a boolean mask with the best centered rectangle.
+    Imposes a minimum relative size: height ≥ min_frac × H and width ≥ min_frac × W.
+    Score = white − lambda_penalty × black.
     """
     assert mask.ndim == 2
     H, W = mask.shape
-    cy, cx = H // 2, W // 2
+    cy, cx = H // 2, W // 2 # the center
 
-    # mínimos absolutos teniendo en cuenta el mínimo relativo
+    # absolute minimums taking the relative minimum into account
     min_h = max(min_h, int(np.ceil(min_frac * H)))
     min_w = max(min_w, int(np.ceil(min_frac * W)))
 
-    # evitar que el margen haga imposible el mínimo
+    # avoid the margin making the minimum impossible
     usable_h = H - 2 * margin
     usable_w = W - 2 * margin
     min_h = min(min_h, max(1, usable_h))
@@ -54,18 +59,19 @@ def best_centered_rect_mask(mask: np.ndarray,
 
     ii = _integral_image(mask)
 
-    # máximos respetando márgenes
+    # maximums while respecting margins
     max_h = usable_h
     max_w = usable_w
 
     best_score = -np.inf
     best_t = best_l = best_b = best_r = 0
 
+    # Try all posible rectangles and avoid those that can not fit
     for h in range(min_h, max_h + 1, step):
         half_h = h // 2
         top    = max(cy - half_h, margin)
         bottom = min(top + h, H - margin)
-        if bottom - top < min_h:  # por si el centro y el margen lo impiden
+        if bottom - top < min_h:  # in case the center and the margin make it impossible
             continue
 
         for w in range(min_w, max_w + 1, step):
@@ -94,11 +100,8 @@ def best_rotated_mask(original_mask: np.ndarray,
                       angle_step: float = 1.0,
                       lambda_penalty: float = 1.2) -> np.ndarray:
     """
-    Dado un rectángulo centrado (rect_mask), busca la mejor rotación ±angle_limit
-    que maximiza whites - lambda_penalty*blacks respecto a original_mask.
-
-    original_mask : (H,W) bool  -> máscara “ground” (la salida Mahalanobis antes del rectángulo)
-    rect_mask     : (H,W) bool  -> máscara del rectángulo centrado
+    Given a centered rectangle (rect_mask), search the best rotation within the angle_limit
+    that maximizes: whites - lambda_penalty * blacks, with respect to original_mask.
     """
     assert original_mask.shape == rect_mask.shape
     orig = original_mask.astype(bool)
@@ -109,7 +112,7 @@ def best_rotated_mask(original_mask: np.ndarray,
 
     angles = np.arange(-angle_limit, angle_limit + 1e-9, angle_step)
     for ang in angles:
-        # rotación alrededor del centro de la imagen; sin cambiar tamaño
+        # rotate around the image center; keep the same size
         cand = _rotate(base.astype(np.uint8), ang, reshape=False, order=0, mode="constant", cval=0).astype(bool)
 
         area   = int(cand.sum())
@@ -129,13 +132,7 @@ def extract_border_samples(img: np.ndarray,
                            border_width: int = 20, 
                            max_samples = 2000) -> np.ndarray:
     """
-    Extracts border pixels using a boolean mask to avoid double-counting corners.
-    Args:
-        img: Input image from which to extract border samples.
-        border_width: Width of the border to extract (default is 10 pixels).
-
-    Returns:
-        A 2D array of shape (N, C) containing the color samples from the border pixels.
+    Extracts border pixels using a boolean mask.
     """
     top = img[:border_width, :] 
     bottom = img[-border_width:, :]
@@ -158,7 +155,7 @@ def extract_border_samples(img: np.ndarray,
 def remove_background(img: np.ndarray, 
                       method: dict):
 
-    # Locally smooth the color noise (so we get better results with the masks near the borders!)
+    # Locally smooth the color noise (so we get better results with the masks near the edges!)
     img_smooth = median_filter(img, size=(3, 3, 1))
 
     # Try a*, b* (LAB) or HS (HSV)
@@ -173,7 +170,7 @@ def remove_background(img: np.ndarray,
         # Normalization (Hue from [0, 360])
         channels[..., 0] /= 360
 
-    # Border taken from the samples, 10 pix by default
+    # Border taken from the samples, 20 pix by default
     samples = extract_border_samples(channels, border_width=method["border_width"])
 
     # Minimum Covariance Determinant -> remove a fraction of outliers (more robust than simple covariance)
@@ -209,7 +206,6 @@ def remove_background(img: np.ndarray,
     candidate_bg = binary_closing(candidate_bg, structure=STRUCT, iterations=2)
 
     # Propagate background only from border
-    # TODO: should we code this from scratch?
     seed = np.zeros_like(candidate_bg, dtype=bool)
     bw = method["border_width"]
     # Take the edges as the seed
@@ -257,11 +253,39 @@ def _evaluate_method(images: List[np.ndarray], gts: List[np.ndarray], desc: Dict
     }
     return scores, preds
 
-def find_best_mask(images: List[np.ndarray], masks_gt: List[np.ndarray]) -> Dict[str, Any]:
+def create_grid_search_experiments(permutations):
+    experiments = []
+
+    for (color_space, border_width, use_perc, percentile, cov_fraction,
+         angle_limit, lambda_penalty, min_frac, step, use_bs) in itertools.product(
+            permutations["color_space"],  permutations["border_width"], permutations["use_percentile_thresh"],
+            permutations["percentile"], permutations["cov_fraction"], permutations["angle_limit"], 
+            permutations["lambda_penalty"], permutations["min_frac"], permutations["step"], 
+            permutations["use_bs"]):
+        exp = {
+            "color_space": color_space,
+            "border_width": border_width,
+            "use_percentile_thresh": use_perc,
+            "percentile": percentile,
+            "cov_fraction": cov_fraction,
+            "angle_limit": angle_limit,
+            "lambda_penalty": lambda_penalty,
+            "min_frac": min_frac,
+            "step": step,
+            "use_best_square": use_bs
+        }
+        
+        experiments.append(exp)
+    
+    return experiments
+
+def find_best_mask(images: List[np.ndarray], 
+                   masks_gt: List[np.ndarray],
+                   segmentation_experiments: Dict[str, Any]) -> Dict[str, Any]:
     best = None
     results = []
 
-    background_experiments = create_grid_search_experiments();
+    background_experiments = create_grid_search_experiments(segmentation_experiments)
 
     for desc_num, desc in enumerate(background_experiments, start=1):
         print(f"Using method {desc_num}/{len(background_experiments)}: {desc}")
@@ -297,14 +321,18 @@ def apply_best_method_and_plot(
     masks = [remove_background(img, best_method).astype(bool) for img in images]
     n = len(masks)
 
+    out_dir = SCRIPT_DIR / "segmentation_outputs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
     for i in range(n):
-        plt.figure(figsize=(8, 4))
-        plt.subplot(1, 2, 1); plt.imshow(images[i]); plt.title("Original"); plt.axis("off")
-        plt.subplot(1, 2, 2); plt.imshow(masks[i], cmap="gray"); plt.title("Mask"); plt.axis("off")
-        plt.tight_layout(); plt.show(); plt.close()
+        fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+        axes[0].imshow(images[i])
+        axes[0].set_title("Original"); axes[0].axis("off")
+        axes[1].imshow(masks[i], cmap="gray")
+        axes[1].set_title("Mask"); axes[1].axis("off")
+
+        fig.tight_layout()
+        fig.savefig(out_dir / f"output_image_{i}.png", dpi=150, bbox_inches="tight") 
+        plt.close(fig)
 
     return masks
-    
-# TODO: With the proposed posible method, all  results are the same! ,maybe we need to change some other 
-# params. also at the end we'll need just to apply best method to the images, refactor this.
-# Finally, could perform a real grid search, now we just try options

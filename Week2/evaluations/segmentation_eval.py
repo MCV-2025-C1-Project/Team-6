@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Optional
+from typing import List
 
 
 def precision(prediction: np.ndarray, ground_truth: np.ndarray) -> float:
