@@ -59,7 +59,6 @@ def _desc_hsv(rgb: np.ndarray, n_bins: int = 32, use_value: bool = False) -> np.
     return np.concatenate(concat_hists, axis=0).astype(np.float32) / len(concat_hists)
 
 
-
 def _desc_rgb_hsv(rgb: np.ndarray, n_bins: int = 32,  use_value: bool = False) -> np.ndarray:
     """
     RGB+HSV 1D histogram descriptor.

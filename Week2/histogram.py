@@ -1,4 +1,4 @@
-"Contains histogram functions to use throughout the project."
+"Contains histogram utils to use throughout the project."
 import random
 from typing import Optional
 
@@ -10,12 +10,6 @@ def histogram(data: np.ndarray, n_bins: int = 10) -> np.ndarray:
     """
     This method computes the histogram of the input data and 
     returns the counts and the indexes of the edges.
-    Args:
-        - data (np.ndarray) Input 2D image to compute the histogram from.
-        - n_bins (int) Number of bins for the histogram to have.
-
-    Returns:
-        - np.ndarray: Normalized histogram with shape (n_bins).
     """
     if data.ndim != 2:
         raise ValueError("data expects an image of shape (H, W).")
@@ -53,12 +47,6 @@ def plot_histogram(
     outfile: Optional[str] = None) -> None:
     """
     Plot a histogram of the input data.
-    Args:
-        - data (np.ndarray) Input 2D image to compute the histogram from.
-        - n_bins (int) Number of bins for the histogram to have.
-        - title (str): Title of the histogram.
-        - xlabel (str): Name of the x-axis.
-        - outfile (str): The path to save file.
     """
     # Compute histogram
     hist = histogram(data, n_bins=n_bins)
@@ -102,7 +90,6 @@ def equalize_histogram(probs: np.ndarray = None):
 
 
 if __name__=="__main__":
-    # Create test data
     random.seed(42)
 
     data = np.array([[1,1,1,1,1,1, 0.4, 0.3 , 0]])

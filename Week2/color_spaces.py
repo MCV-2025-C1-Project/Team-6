@@ -2,10 +2,11 @@
 and the website: https://www.rapidtables.com/convert/color/rgb-to-hsv.html"""
 import numpy as np
 
-
 # Helpers
+# When we load an image the pixel values we get are not linear with respect 
+# to real light intensity (it has gamma curvature), need to convert back to linear light values
 def _srgb_to_linear(rgb: np.ndarray) -> np.ndarray:
-    """Inverse sRGB companding: gamma-encoded [0..1] -> linear [0..1]."""
+    """Inverse sRGB companding. From gamma-encoded to linear."""
     a = 0.055
     return np.where(
         rgb <= 0.04045,
@@ -14,7 +15,7 @@ def _srgb_to_linear(rgb: np.ndarray) -> np.ndarray:
     )
 
 def _f_lab(t: np.ndarray) -> np.ndarray:
-    """CIE Lab helper f(t) with delta = 6/29."""
+    """CIE Lab helper f(t). Non-linear transofrmation with delta 6/29."""
     delta = 6/29
     t0 = delta**3
     return np.where(
@@ -23,6 +24,7 @@ def _f_lab(t: np.ndarray) -> np.ndarray:
         t / (3 * delta**2) + 4/29
     )
 
+# Color space conversions
 def rgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
     og_shape = rgb.shape
     rgb = rgb.astype(np.float64)
@@ -30,7 +32,7 @@ def rgb_to_xyz(rgb: np.ndarray) -> np.ndarray:
     if rgb.max() > 1.0:
         rgb = rgb / 255.0
 
-    # Inverse sRGB companding
+    # Inverse sRGB
     rgb_lin = _srgb_to_linear(rgb)
 
     # sRGB (linear) -> XYZ (D65)
@@ -77,24 +79,8 @@ def rgb_to_hsv(rgb: np.ndarray) -> np.ndarray:
     HSV = HSV.reshape(og_shape)
     return HSV
 
-def bgr_to_rgb(bgr: np.ndarray) -> np.ndarray:
-    if bgr.ndim != 3 or bgr.shape[2] != 3:
-        raise ValueError("bgr_to_rgb expects an image of shape (H, W, 3).")
-
-    og_shape = bgr.shape
-    flat = bgr.reshape(-1, 3) # No need to normalize, just a swapping of channels
-
-    # BGR -> RGB, swap first and last columns
-    B = flat[:, 0]
-    G = flat[:, 1]
-    R = flat[:, 2]
-
-    rgb_flat = np.stack([R, G, B], axis=-1)
-    rgb = rgb_flat.reshape(og_shape)
-    return rgb
-
 def xyz_to_lab(xyz: np.ndarray) -> np.ndarray:
-    """XYZ (Y~100 scale, D65) -> Lab."""
+    """XYZ -> Lab."""
     if xyz.ndim != 3 or xyz.shape[-1] != 3:
         raise ValueError("xyz_to_lab expects (H, W, 3).")
     
