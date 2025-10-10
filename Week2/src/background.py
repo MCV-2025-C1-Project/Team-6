@@ -135,16 +135,19 @@ def extract_border_samples(img: np.ndarray,
     """
     Extracts border pixels using a boolean mask.
     """
-    top = img[:border_width, :] 
-    bottom = img[-border_width:, :]
-    left = img[:, :border_width]
-    right = img[:, -border_width:]
-    samples = np.vstack([
-        top.reshape(-1, img.shape[2]),
-        bottom.reshape(-1, img.shape[2]),
-        left.reshape(-1, img.shape[2]),
-        right.reshape(-1, img.shape[2]),
-    ])
+    h, w, c = img.shape  # Get actual channel count
+
+    # Mask of booleans
+    mask = np.zeros((h, w), dtype=bool)
+    
+    # Set the border regions to True
+    mask[:border_width, :] = True
+    mask[-border_width:, :] = True
+    mask[:, :border_width] = True
+    mask[:, -border_width:] = True
+
+    # Extract samples using the mask
+    samples = img[mask]
 
     if len(samples) > max_samples:
         rng = np.random.default_rng(42)
