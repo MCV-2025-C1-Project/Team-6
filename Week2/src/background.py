@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 import itertools
 from pathlib import Path
+import cv2
 
 import numpy as np
 from scipy.stats import chi2
@@ -325,14 +326,7 @@ def apply_best_method_and_plot(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     for i in range(n):
-        fig, axes = plt.subplots(1, 2, figsize=(8, 4))
-        axes[0].imshow(images[i])
-        axes[0].set_title("Original"); axes[0].axis("off")
-        axes[1].imshow(masks[i], cmap="gray")
-        axes[1].set_title("Mask"); axes[1].axis("off")
-
-        fig.tight_layout()
-        fig.savefig(out_dir / f"output_image_{i}.png", dpi=150, bbox_inches="tight") 
-        plt.close(fig)
+        mask_uint8 = (masks[i] * 255).astype("uint8")
+        cv2.imwrite(str(out_dir / f"{i:05d}.png"), mask_uint8)
 
     return masks
