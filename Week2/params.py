@@ -24,6 +24,8 @@ best_config2 = {
     "metric": "l1"
 }
 
+background_best_parameters = {'color_space': 'lab', 'border_width': 20, 'use_percentile_thresh': False, 'percentile': 99, 'cov_fraction': 0.9,  'angle_limit': 15, 'lambda_penalty': 2.0, 'min_frac': 0.5, 'step': 4, 'use_best_square': True}
+
 import numpy as np
 import itertools
 
