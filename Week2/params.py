@@ -21,12 +21,42 @@ best_config2 = {
     "metric": "l1"
 }
 
-# Maybe it would be nicer to have a real grid search...
-background_experiments = [
-    {"color_space": "lab", "border_width": 10, "use_percentile_thresh": True,  "percentile": 97, "cov_fraction": 0.75, "angle_limit": 15, "angle_step": 1, "lambda_penalty": 1.0, "min_frac": 0.5, "step": 4},
-    {"color_space": "lab", "border_width": 20, "use_percentile_thresh": True,  "percentile": 99, "cov_fraction": 0.9,"angle_limit": 30, "angle_step": 1, "lambda_penalty": 1.2, "min_frac": 0.5, "step": 4},
-    {"color_space": "hsv", "border_width": 10, "use_percentile_thresh": True,  "percentile": 99, "cov_fraction": 0.75,"angle_limit": 30, "angle_step": 1, "lambda_penalty": 1.0, "min_frac": 0.5, "step": 4},
-    {"color_space": "hsv", "border_width": 20, "use_percentile_thresh": True,  "percentile": 97, "cov_fraction": 0.9,"angle_limit": 15, "angle_step": 1, "lambda_penalty": 1.2, "min_frac": 0.5, "step": 4},
-    {"color_space": "lab", "border_width": 10, "use_percentile_thresh": False,                   "cov_fraction": 0.75,"angle_limit": 15, "angle_step": 2, "lambda_penalty": 1.0, "min_frac": 0.8, "step": 4},
-    {"color_space": "hsv", "border_width": 20, "use_percentile_thresh": False,                   "cov_fraction": 0.9,"angle_limit": 30, "angle_step": 2, "lambda_penalty": 1.2, "min_frac": 0.8, "step": 4},
-]
+import numpy as np
+import itertools
+
+def create_grid_search_experiments(
+    color_spaces=["lab", "hsv"],
+    border_widths=[5, 10, 20],
+    use_percentile_thresh=[True, False],
+    percentiles=[97, 99],
+    cov_fractions=[0.75, 0.9],
+    angle_limits=[0, 15, 30],
+    lambda_penalties=[1.0, 2.0],
+    min_fracs=[0.5, 0.8],
+    steps=[4],
+    use_best_square=[True, False]    
+):
+    experiments = []
+
+    for (color_space, border_width, use_perc, percentile, cov_fraction,
+         angle_limit, lambda_penalty, min_frac, step, use_bs) in itertools.product(
+            color_spaces, border_widths, use_percentile_thresh, percentiles,
+            cov_fractions, angle_limits, lambda_penalties, min_fracs, steps, use_best_square
+    ):
+        exp = {
+            "color_space": color_space,
+            "border_width": border_width,
+            "use_percentile_thresh": use_perc,
+            "percentile": percentile,
+            "cov_fraction": cov_fraction,
+            "angle_limit": angle_limit,
+            "lambda_penalty": lambda_penalty,
+            "min_frac": min_frac,
+            "step": step,
+            "use_best_square": use_bs
+        }
+        
+        experiments.append(exp)
+    
+    return experiments
+

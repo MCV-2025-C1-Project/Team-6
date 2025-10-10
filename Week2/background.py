@@ -13,7 +13,7 @@ from scipy.ndimage import (binary_opening,
 from scipy.ndimage import rotate as _rotate
 
 from color_spaces import rgb_to_hsv, rgb_to_lab
-from params import background_experiments
+from params import create_grid_search_experiments
 from metrics import f1_score, precision, recall, intersection_over_union
 
 # we'll use it in remove_background, avoid reallocating it every time
@@ -199,7 +199,7 @@ def remove_background(img: np.ndarray,
         d2_s = np.einsum('ij,ij->i', delta_s @ cov_inv, delta_s)
         threshold = np.percentile(d2_s, method["percentile"])
     else:
-        threshold = chi2.ppf(1 - float(1-method["percentile"]), df=2)
+        threshold = chi2.ppf(method["percentile"] / 100.0, df=2)
 
     mask_bg = (d2 <= threshold)
 
@@ -220,10 +220,11 @@ def remove_background(img: np.ndarray,
     foreground = ~background
     org_mask = binary_fill_holes(foreground) # light cleanup
 
-    rect_mask = best_centered_rect_mask(foreground, min_frac=method["min_frac"], step=method["step"], lambda_penalty=method["lambda_penalty"])
-    foreground = best_rotated_mask(org_mask, rect_mask, angle_limit=method["angle_limit"], angle_step=method["angle_step"], lambda_penalty=method["lambda_penalty"])
+    if method["use_best_square"]:
+        rect_mask = best_centered_rect_mask(org_mask, min_frac=method["min_frac"], step=method["step"], lambda_penalty=method["lambda_penalty"])
+        org_mask = best_rotated_mask(org_mask, rect_mask, angle_limit=method["angle_limit"], lambda_penalty=method["lambda_penalty"])
 
-    return foreground.astype(bool)
+    return org_mask.astype(bool)
 
 def _to_bool_mask(arr: np.ndarray) -> np.ndarray:
     """
@@ -259,14 +260,16 @@ def find_best_mask(images: List[np.ndarray], masks_gt: List[np.ndarray]) -> Dict
     best = None
     results = []
 
-    for desc in background_experiments:
-        print(f"Using method: {desc}")
+    background_experiments = create_grid_search_experiments();
+
+    for desc_num, desc in enumerate(background_experiments, start=1):
+        print(f"Using method {desc_num}/{len(background_experiments)}: {desc}")
         scores, _ = _evaluate_method(images, masks_gt, desc)
         results.append({"method": desc, "scores": scores})
         if (best is None) or (scores["iou"] > best["scores"]["iou"]) or \
            (np.isclose(scores["iou"], best["scores"]["iou"]) and scores["f1"] > best["scores"]["f1"]):
             best = {"method": desc, "scores": scores}
-        print(f"Score: {best['scores']}")
+        print(f"Score: {scores}")
 
     with open("./Week2/background_best_results.txt", "w") as f:
         f.write("Best method:\n")
@@ -275,6 +278,9 @@ def find_best_mask(images: List[np.ndarray], masks_gt: List[np.ndarray]) -> Dict
         f.write("\nBest scores:\n")
         for k, v in best["scores"].items():
             f.write(f"  {k}: {v:.4f}\n")
+
+    print(f"Best method: {best['method']}")
+    print(f"Best scores: {best['scores']}")
 
     return {
         "best_method": best["method"],
