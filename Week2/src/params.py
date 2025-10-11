@@ -15,8 +15,7 @@ best_config_descriptors = {
     "color_space": "hsv", 
     "n_bins": 16,
     "metric": "l1",
-    "n_crops": 23,
-    "pyramid": False
+    "n_crops": 23
 }
 
 best_config1 = {

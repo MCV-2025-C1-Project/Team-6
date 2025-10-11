@@ -120,6 +120,8 @@ def compute_spatial_descriptors(
         img_count = len(imgs)
         level_descs = []
         for level in pyramid_levels:
+            print(f"Computing level {level} descriptors...")
+
             cropped_imgs = [_spatial_crop(im, level) for im in imgs]
             
             # Baseline
@@ -194,7 +196,8 @@ def compute_spatial_descriptors(
             raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
         
         for cropped_img in initial_descs:
-                #print("weights")
+                print(f"Computing {n_crops} crops descriptors...")
+
                 if center_weights:
                     center = (n_crops - 1) / 2.0
                     sigma = n_crops / 4.0 # Controls the spread/gentleness of the falloff (larger sigma = less drastic)
@@ -229,13 +232,11 @@ def compute_spatial_descriptors(
     
 # Compute descriptors for benchmark
 if __name__=="__main__":
-    bbdd_imgs = read_images(SCRIPT_DIR.parent / "BBDD")
+    print("Reading BBDD images...")
+    bbdd_imgs = read_images(SCRIPT_DIR.parent.parent / "BBDD")
     for piramid in experiments["pyramid_levels"]:
         print(f"Computing pyramid {piramid} descriptors...")
         compute_spatial_descriptors(bbdd_imgs, method="hsv", pyramid=True, pyramid_levels=piramid, n_bins=16, save_pkl=True)
     for n_crop in experiments["n_crops"]:
         print(f"Computing {n_crop} crops descriptors with center weights...")
         compute_spatial_descriptors(bbdd_imgs, method="hsv",n_crops=n_crop,center_weights=True ,n_bins=16, save_pkl=True) 
-
-    
-                

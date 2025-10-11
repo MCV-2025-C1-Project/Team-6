@@ -1,5 +1,8 @@
-"""Evaluates retrieval on query images by loading precomputed BBDD descriptors, computing query descriptors
-and ranking with multiple metrics."""
+"""
+Evaluates retrieval on query images by loading precomputed BBDD descriptors, 
+computing query descriptors and ranking with multiple metrics.
+"""
+
 from pathlib import Path
 import argparse
 
@@ -8,17 +11,20 @@ import numpy as np
 
 from utils.io_utils import read_images, read_pickle
 from evaluations.metrics import mean_average_precision
-from src.params import descriptor_experiments as experiments
-from Week2.src.descriptors import compute_spatial_descriptors
+from descriptors import compute_spatial_descriptors
 from utils.plots import plot_descriptors_difference, plot_query_results
 from evaluations.similarity_measures import compute_similarities
+
+from params import descriptor_experiments as experiments
+
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 
 def main(data_dir: Path, generate_plots=False) -> None:
     """Run CBIR evaluation over a grid of (method, n_bins, piramid_levels, metric) and k-values."""
 
     # Create dir for outputs
-    out_dir = Path(__file__).resolve().parent / 'outputs'
+    out_dir = SCRIPT_DIR / 'outputs'
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Read query images
@@ -40,7 +46,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
         for piramid_level in piramid_levels:
             for method in methods:
                 for n_bins in bins:
-                    bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / f"{method}_{n_bins}_{piramid_level}_pyramid_descriptors.pkl")
+                    bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}_{piramid_level}_pyramid_descriptors.pkl")
                     img_descriptors = compute_spatial_descriptors(images, method=method, n_bins=n_bins, save_pkl=False, pyramid=True, pyramid_levels=piramid_level)
                     for metric in metrics:
                         print(f"Computing similarities using {metric} metric.")
@@ -66,11 +72,11 @@ def main(data_dir: Path, generate_plots=False) -> None:
                             # Plot the descriptors difference with the most similar
                             best_descriptors = [bbdd_descriptors[idx] for idx in results_indices[:, 0]]
                             plot_descriptors_difference(img_descriptors, best_descriptors,
-                                        save_path=Path(__file__).resolve().parent / 'outputs' / f'descriptor_difference_at{k}_{method}_{n_bins}_{metric}_{piramid_level}.png')
+                                        save_path=SCRIPT_DIR / 'outputs' / f'descriptor_difference_at{k}_{method}_{n_bins}_{metric}_{piramid_level}.png')
                             
                             # Plot the results with similarity values
                             plot_query_results(images, results_indices, results_similarities, k=k,
-                                        save_path=Path(__file__).resolve().parent / 'outputs' / f'query_at{k}_{method}_{n_bins}_{metric}_{piramid_level}.png')
+                                        save_path=SCRIPT_DIR / 'outputs' / f'query_at{k}_{method}_{n_bins}_{metric}_{piramid_level}.png')
 
                         # Compute MAP score
                         map_score = mean_average_precision(indices, gt, k)
@@ -122,7 +128,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
 
                     plt.tight_layout()
                     plt.savefig(
-                        Path(__file__).resolve().parent / "outputs" / f"map{k}_matrix_{method}_{metric}piramids.png"
+                        SCRIPT_DIR / "outputs" / f"map{k}_matrix_{method}_{metric}piramids.png"
                     )
                     plt.close()
         else:
@@ -179,7 +185,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
 
                     plt.tight_layout()
                     plt.savefig(
-                        Path(__file__).resolve().parent / "outputs" / f"map{k}_function_piramid_levels_xaxis_{method}_{metric}piramids.png"
+                        SCRIPT_DIR / "outputs" / f"map{k}_function_piramid_levels_xaxis_{method}_{metric}piramids.png"
                     )
                     plt.close()
 
@@ -193,21 +199,21 @@ def main(data_dir: Path, generate_plots=False) -> None:
                 break
 
         print("Writing results to txt file.")
-        with open(Path(__file__).resolve().parent / 'outputs' / f"results_at{k}.txt", "w") as f:
+        with open(SCRIPT_DIR / 'outputs' / f"results_at{k}.txt", "w") as f:
             for key, value in mapk_scores.items():
                 f.write(f"{key}: {value:.4f}\n")
 
 if __name__ == "__main__":
-    # Parse data directory argument (by default the dev set is used)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-d', '--data-dir',
         type=Path,
-        default=Path(__file__).resolve().parent / "qsd1_w1",
+        default=SCRIPT_DIR.parent / "qsd1_w2",
         help='Path to the dataset directory.'
     )
     data_dir = parser.parse_args().data_dir
-    print(f"Using data from {data_dir}.")
+    
     # Check directory
     if not data_dir.is_dir():
         raise ValueError(f"{data_dir} is not a valid directory.")
