@@ -40,12 +40,10 @@ def main(data_dir: Path) -> None:
     method = best_config_descriptors
 
     # Load precomputed descriptors for the BBDD
-    bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / "hsv_16_[1, 10, 20]_pyramid_descriptors.pkl")    
-
-    #TODO: FALTA QUE EN EL CALCULO DE DESCRIPTORES, NO SE CUENTEN LOS PIXELES NEGROS DE MASK                                                                           
+    bbdd_descriptors = read_pickle(Path(__file__).resolve().parent / "descriptors" / "hsv_16bins_23crops_noWeights_True_weights_descriptors.pkl")                                                                    
 
     # Compute query images descriptors
-    descriptors = compute_spatial_descriptors(masked_images, method=method["color_space"], n_bins=method["n_bins"], pyramid=True, pyramid_levels=method["pyramid_levels"], n_crops=method["n_crops"])
+    descriptors = compute_spatial_descriptors(masked_images, method=method["color_space"], n_bins=method["n_bins"], pyramid=False, n_crops=method["n_crops"])
 
     # Compute similarities
     similarities = compute_similarities(descriptors, bbdd_descriptors, method["metric"])
@@ -58,7 +56,6 @@ def main(data_dir: Path) -> None:
     results = indices[:, :k].astype(int).tolist()
     write_pickle(results, SCRIPT_DIR / "result.pkl")
 
-
     # Compute MAP score
     map_score = mean_average_precision(indices, gt, k)
     print(f"MAP@{k} score: {map_score:.4f}")
@@ -66,15 +63,14 @@ def main(data_dir: Path) -> None:
     # Make directory if not setted up
     os.makedirs(SCRIPT_DIR / "results", exist_ok=True)
 
+    # Plot results
     plot_query_results(queries=masked_images, 
                        results=indices[:, :k], 
                        similarity_values=np.take_along_axis(similarities, indices[:, :k], axis=1), 
                        k=k, 
                        save_path=SCRIPT_DIR / "results" / "query_results.png")
-
-
-
     
+
 
 if __name__ == "__main__":
 

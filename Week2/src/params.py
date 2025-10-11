@@ -51,7 +51,7 @@ best_config_segmentation = {
     'use_percentile_thresh': False, 
     'percentile': 99, 
     'cov_fraction': 0.9,  
-    'angle_limit': 15, 
+    'angle_limit':  0, #15
     'lambda_penalty': 2.0, 
     'min_frac': 0.5, 'step': 4, 
     'use_best_square': True

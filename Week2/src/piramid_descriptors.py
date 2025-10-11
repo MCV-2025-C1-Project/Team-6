@@ -173,7 +173,7 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
             raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
         
         for cropped_img in initial_descs:
-                print("weights")
+                #print("weights")
                 if center_weights:
                     center = (n_crops - 1) / 2.0
                     sigma = n_crops / 4.0 # Controls the spread/gentleness of the falloff (larger sigma = less drastic)
