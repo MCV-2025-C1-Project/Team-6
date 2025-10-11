@@ -7,7 +7,7 @@ import numpy as np
 from utils.plots import plot_query_results
 from evaluations.metrics import mean_average_precision
 from evaluations.similarity_measures import compute_similarities
-from src.piramid_descriptors import compute_spatial_descriptors
+from src.descriptors import compute_spatial_descriptors
 from utils.io_utils import read_images, write_pickle, read_pickle
 from src.background import find_best_mask, apply_best_method_and_plot, crop_images_with_masks
 from src.params import segmentation_experiments, best_config_segmentation, best_config_descriptors
