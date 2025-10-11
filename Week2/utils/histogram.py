@@ -10,7 +10,6 @@ def histogram(data: np.ndarray, n_bins: int = 10) -> np.ndarray:
     """
     This method computes the histogram of the input data and 
     returns the counts and the indexes of the edges.
-    Ignores black pixels (value = 0).
     """
     if data.ndim != 2:
         raise ValueError("data expects an image of shape (H, W).")
@@ -24,17 +23,12 @@ def histogram(data: np.ndarray, n_bins: int = 10) -> np.ndarray:
         raise ValueError(f"Input data should be normalized to [0,1] (given: [{min_val},{max_val}].")
     elif n_bins < 1:
         raise ValueError(f"Number of bins must be positive (given: {n_bins}).")
-
-    # Filter out black pixels (background)
-    valid_pixels = data[data > 0]
-    if len(valid_pixels) == 0:
-        return np.zeros(n_bins, dtype=np.float32)
-
+    
     # Compute bin edges
     edges = np.linspace(0, 1, n_bins+1) # 1 more edge than bins
 
     # Get bin index per data value (np.digitize starts at index 1)
-    indices = np.digitize(valid_pixels, edges) - 1
+    indices = np.digitize(data.flatten(), edges,) - 1
 
     # Ensure indices are within valid range
     indices = np.clip(indices, 0, n_bins-1) 
@@ -43,8 +37,7 @@ def histogram(data: np.ndarray, n_bins: int = 10) -> np.ndarray:
     histogram = np.bincount(indices, minlength=n_bins).astype(np.float32)
 
     # Return normalized histogram
-    return histogram / np.sum(histogram)
-
+    return histogram / (H*W)
 
 
 def plot_histogram(

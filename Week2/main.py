@@ -9,7 +9,7 @@ from evaluations.metrics import mean_average_precision
 from evaluations.similarity_measures import compute_similarities
 from src.piramid_descriptors import compute_spatial_descriptors
 from utils.io_utils import read_images, write_pickle, read_pickle
-from src.background import find_best_mask, apply_best_method_and_plot
+from src.background import find_best_mask, apply_best_method_and_plot, crop_images_with_masks
 from src.params import segmentation_experiments, best_config_segmentation, best_config_descriptors
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -33,8 +33,8 @@ def main(data_dir: Path) -> None:
         images,
         best_config_segmentation)
     
-    #Apply masks to images
-    masked_images = [img * mask[:, :, None] for img, mask in zip(images, masks)]
+    #Crop images from the mask
+    masked_images = crop_images_with_masks(images, masks)
 
     # Descriptor parameters
     method = best_config_descriptors

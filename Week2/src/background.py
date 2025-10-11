@@ -333,3 +333,21 @@ def apply_best_method_and_plot(
         cv2.imwrite(str(out_dir / f"{i:05d}.png"), mask_uint8)
 
     return masks
+
+
+def crop_images_with_masks(images, masks):
+    cropped_images = []
+    for img, mask in zip(images, masks):
+        # Encuentra los límites del área blanca
+        ys, xs = np.where(mask > 0)
+        if len(xs) == 0 or len(ys) == 0:
+            cropped_images.append(None)
+            continue
+
+        x_min, x_max = xs.min(), xs.max()
+        y_min, y_max = ys.min(), ys.max()
+
+        # Recorta la imagen usando los límites
+        cropped = img[y_min:y_max+1, x_min:x_max+1]
+        cropped_images.append(cropped)
+    return cropped_images
