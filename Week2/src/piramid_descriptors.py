@@ -88,7 +88,6 @@ def _spatial_crop(img: np.ndarray, n_crops: int = 3, ) -> np.ndarray:
 
 def compute_spatial_descriptors(imgs: List[np.ndarray], 
                                 n_crops: int = 3,
-                                
                                 pyramid: bool = False,
                                 center_weights: bool = False,
                                 pyramid_levels: list = [1, 3,5],

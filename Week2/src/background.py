@@ -5,7 +5,6 @@ import cv2
 
 import numpy as np
 from scipy.stats import chi2
-import matplotlib.pyplot as plt
 from sklearn.covariance import MinCovDet
 from scipy.ndimage import (binary_opening, 
                            binary_closing, 
@@ -213,8 +212,10 @@ def remove_background(img: np.ndarray,
     seed = np.zeros_like(candidate_bg, dtype=bool)
     bw = method["border_width"]
     # Take the edges as the seed
-    seed[:bw, :] = True; seed[-bw:, :] = True
-    seed[:, :bw] = True; seed[:, -bw:] = True
+    seed[:bw, :] = True
+    seed[-bw:, :] = True
+    seed[:, :bw] = True
+    seed[:, -bw:] = True
 
     background = binary_propagation(seed, mask=candidate_bg)
 
@@ -316,26 +317,29 @@ def find_best_mask(images: List[np.ndarray],
         "best_scores": best["scores"]
     }
 
-def apply_best_method_and_plot(
+def apply_segmentation(
     images: List[np.ndarray],
-    best_method: Dict[str, Any]):
+    best_method: Dict[str, Any],
+    save_plot: bool = False) -> List[np.ndarray]:
     """
     Applies the best method and plots Original vs Mask, returns masks.
     """
     masks = [remove_background(img, best_method).astype(bool) for img in images]
-    n = len(masks)
-
-    out_dir = SCRIPT_DIR / "segmentation_outputs"
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    for i in range(n):
-        mask_uint8 = (masks[i] * 255).astype("uint8")
-        cv2.imwrite(str(out_dir / f"{i:05d}.png"), mask_uint8)
+    
+    if save_plot:
+        n = len(masks)
+        out_dir = SCRIPT_DIR / "segmentation_outputs"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for i in range(n):
+            mask_uint8 = (masks[i] * 255).astype("uint8")
+            cv2.imwrite(str(out_dir / f"{i:05d}.png"), mask_uint8)
 
     return masks
 
-
-def crop_images_with_masks(images, masks):
+def crop_images(images: List[np.ndarray], masks: List[np.ndarray]) -> List[np.ndarray]:
+    """
+    Crop images using the provided masks.
+    """
     cropped_images = []
     for img, mask in zip(images, masks):
         # Encuentra los límites del área blanca
