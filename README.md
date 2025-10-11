@@ -29,8 +29,7 @@ conda activate team6-env
 
 This is the project structure, where `WeekX/` folder contains the code developed during that week.  
 Inside each week's folder, there is a `README.md` file explaining the scripts.  
-Note that the paths to the Development and Test sets for each week can be specified as arguments in the code,  
-but by default they are assumed to be located inside the corresponding `WeekX/` folder as `qsdY_wX/` and `qstY_wX/`.
+Note that the paths to the Development and Test sets for each week can be specified as arguments in the code,  but by default they are assumed to be located inside the corresponding `WeekX/` folder as `qsdY_wX/` and `qstY_wX/`.
 
 ```bash
 Team-6/

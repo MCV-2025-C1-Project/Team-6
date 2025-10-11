@@ -6,6 +6,8 @@ import matplotlib
 matplotlib.use('TkAgg')  # Use TkAgg backend for better compatibility
 import matplotlib.pyplot as plt
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+
 def plot_query_results(queries: List[np.ndarray], 
                        results: List[np.ndarray], 
                        similarity_values: np.ndarray, 
@@ -39,7 +41,7 @@ def plot_query_results(queries: List[np.ndarray],
         
         # Plot k most similar images
         for j, (img_idx, sim_value) in enumerate(zip(results[i], similarity_values[i])):
-            img_path = Path.cwd().parent / "BBDD" / f"bbdd_{img_idx:05d}.jpg"  # TODO: is this a correct relative path? DIEGO
+            img_path = SCRIPT_DIR.parent.parent.parent / "BBDD" / f"bbdd_{img_idx:05d}.jpg"  
             try:
                 bbdd_img = plt.imread(str(img_path))
                 axes[i, j + 1].imshow(bbdd_img)

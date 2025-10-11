@@ -120,7 +120,6 @@ def compute_spatial_descriptors(
         img_count = len(imgs)
         level_descs = []
         for level in pyramid_levels:
-            print(f"Computing level {level} descriptors...")
 
             cropped_imgs = [_spatial_crop(im, level) for im in imgs]
             
@@ -196,8 +195,6 @@ def compute_spatial_descriptors(
             raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
         
         for cropped_img in initial_descs:
-                print(f"Computing {n_crops} crops descriptors...")
-
                 if center_weights:
                     center = (n_crops - 1) / 2.0
                     sigma = n_crops / 4.0 # Controls the spread/gentleness of the falloff (larger sigma = less drastic)
