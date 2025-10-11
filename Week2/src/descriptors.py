@@ -212,9 +212,9 @@ if __name__=="__main__":
     for piramid in experiments["pyramid_levels"]:
         print(f"Computing pyramid {piramid} descriptors...")
         compute_spatial_descriptors(bbdd_imgs, method="hsv", pyramid=True, pyramid_levels=piramid, n_bins=16, save_pkl=True)
-    """ for n_crop in experiments["n_crops"]:
+    for n_crop in experiments["n_crops"]:
         print(f"Computing {n_crop} crops descriptors with center weights...")
-        compute_spatial_descriptors(bbdd_imgs, method="hsv",n_crops=n_crop,center_weights=True ,n_bins=16, save_pkl=True) """
+        compute_spatial_descriptors(bbdd_imgs, method="hsv",n_crops=n_crop,center_weights=True ,n_bins=16, save_pkl=True) 
 
     
                 

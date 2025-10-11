@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from evaluations.similarity_measures import compute_similarities
-from piramid_descriptors import compute_spatial_descriptors
+from Week2.src.descriptors import compute_spatial_descriptors
 from utils.io_utils import read_images, write_pickle, read_pickle
 from background import apply_segmentation, crop_images
 from params import best_config_segmentation, best_config_descriptors

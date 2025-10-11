@@ -17,7 +17,7 @@ best_config_descriptors = {
     "n_bins": 16,
     "metric": "l1",
     "n_crops": 23,
-    "pyramid_levels": [1,10,20]
+    "pyramid_levels": [20,23]
 }
 
 best_config1 = {

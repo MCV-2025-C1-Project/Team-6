@@ -9,7 +9,7 @@ import numpy as np
 from utils.io_utils import read_images, read_pickle
 from evaluations.metrics import mean_average_precision
 from src.params import experiments
-from src.piramid_descriptors import compute_spatial_descriptors
+from Week2.src.descriptors import compute_spatial_descriptors
 from utils.plots import plot_descriptors_difference, plot_query_results
 from evaluations.similarity_measures import compute_similarities
 

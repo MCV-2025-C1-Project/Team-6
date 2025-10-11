@@ -9,13 +9,13 @@ import numpy as np
 from utils.io_utils import read_images, read_pickle
 from evaluations.metrics import mean_average_precision
 from src.params import descriptor_experiments as experiments
-from src.piramid_descriptors import compute_spatial_descriptors
+from Week2.src.descriptors import compute_spatial_descriptors
 from utils.plots import plot_descriptors_difference, plot_query_results
 from evaluations.similarity_measures import compute_similarities
 
 
 def main(data_dir: Path, generate_plots=False) -> None:
-    """Run CBIR evaluation over a grid of (method, n_bins, n_crops, metric) and k-values."""
+    """Run CBIR evaluation over a grid of (method, n_bins, piramid_levels, metric) and k-values."""
 
     # Create dir for outputs
     out_dir = Path(__file__).resolve().parent / 'outputs'
@@ -66,11 +66,11 @@ def main(data_dir: Path, generate_plots=False) -> None:
                             # Plot the descriptors difference with the most similar
                             best_descriptors = [bbdd_descriptors[idx] for idx in results_indices[:, 0]]
                             plot_descriptors_difference(img_descriptors, best_descriptors,
-                                        save_path=Path(__file__).resolve().parent / 'outputs' / f'descriptor_difference_at{k}_{method}_{n_bins}_{metric}_{n_crop}.png')
+                                        save_path=Path(__file__).resolve().parent / 'outputs' / f'descriptor_difference_at{k}_{method}_{n_bins}_{metric}_{piramid_level}.png')
                             
                             # Plot the results with similarity values
-                            plot_query_results(images, results_indices, results_similarities, k=k, 
-                                        save_path=Path(__file__).resolve().parent / 'outputs' / f'query_at{k}_{method}_{n_bins}_{metric}_{n_crop}.png')
+                            plot_query_results(images, results_indices, results_similarities, k=k,
+                                        save_path=Path(__file__).resolve().parent / 'outputs' / f'query_at{k}_{method}_{n_bins}_{metric}_{piramid_level}.png')
 
                         # Compute MAP score
                         map_score = mean_average_precision(indices, gt, k)
@@ -86,7 +86,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
         if matrix:
             for method in methods:
                 for metric in metrics:
-                    # Create matrix rows = n_crops, cols = bins
+
                     score_matrix = np.zeros((len(piramid_levels), len(bins)))
                     
                     for i, piramid_level in enumerate(piramid_levels):
@@ -134,10 +134,10 @@ def main(data_dir: Path, generate_plots=False) -> None:
                     
                     # Iterate over the values of bins to create separate lines
                     for j, n_bin in enumerate(bins):
-                        # Create a list to hold the scores for the current n_bin across all n_crops
+                        # Create a list to hold the scores for the current n_bin across all piramid levels
                         scores_for_n_bin = []
-                        
-                        # Iterate over n_crops (the x-axis)
+
+                        # Iterate over piramid_levels (the x-axis)
                         for i, piramid_level in enumerate(piramid_levels):
                             key = f"{method}_{n_bin}bins_{metric}_{piramid_level}"
                             if key in mapk_scores:
@@ -168,7 +168,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
                     ax.set_ylabel(f"MAP@{k} Score")
                     ax.set_title(f"MAP@{k} Score vs. Crops for {method} - {metric}")
                     
-                    # Set x-ticks to correspond to the actual n_crops numbers
+                    # Set x-ticks to correspond to the actual piramid levels 
                     ax.set_xticks(range(len(piramid_levels)))
                     
                     # Add a legend to distinguish the lines (different number of bins)
@@ -179,7 +179,7 @@ def main(data_dir: Path, generate_plots=False) -> None:
 
                     plt.tight_layout()
                     plt.savefig(
-                        Path(__file__).resolve().parent / "outputs" / f"map{k}_function_crops_xaxis_{method}_{metric}piramids.png"
+                        Path(__file__).resolve().parent / "outputs" / f"map{k}_function_piramid_levels_xaxis_{method}_{metric}piramids.png"
                     )
                     plt.close()
 
