@@ -4,13 +4,10 @@ from typing import List
 import numpy as np
 from pathlib import Path
 
-from src.params import descriptor_experiments as experiments
+from params import descriptor_experiments as experiments
 from utils.color_spaces import rgb_to_hsv
 from utils.histogram import histogram
 from utils.io_utils import write_pickle, read_images
-
-
-
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -75,7 +72,11 @@ def _desc_rgb_hsv(rgb: np.ndarray, n_bins: int = 32,  use_value: bool = False) -
     # Concatenate and normalize them jointly
     return np.concatenate([rgb_desc, hsv_desc]) / (3 + hsv_desc_len)
 
+
 def _spatial_crop(img: np.ndarray, n_crops: int = 3, ) -> np.ndarray:
+    """
+    Crop an image into n_crops x n_crops regions.
+    """
     crops = []
     h, w = img.shape[:2]
 
@@ -86,14 +87,34 @@ def _spatial_crop(img: np.ndarray, n_crops: int = 3, ) -> np.ndarray:
     return crops
         
 
-def compute_spatial_descriptors(imgs: List[np.ndarray], 
-                                n_crops: int = 3,
-                                pyramid: bool = False,
-                                center_weights: bool = False,
-                                pyramid_levels: list = [1, 3,5],
-                        method: str = "hsv",
-                        n_bins: int = 16,
-                        save_pkl: bool = False) -> List[np.ndarray]:
+def compute_spatial_descriptors(
+    imgs: List[np.ndarray], 
+    n_crops: int = 3,
+    pyramid: bool = False,
+    center_weights: bool = False,
+    pyramid_levels: list = [1, 3,5],
+    method: str = "hsv",
+    n_bins: int = 16,
+    save_pkl: bool = False
+) -> List[np.ndarray]:
+    
+    """
+    Compute spatial color descriptors for a list of images. 
+
+    Args:
+        imgs: List of images as numpy arrays.
+        n_crops: Number of crops per dimension (n_crops x n_crops).
+        pyramid: Whether to use spatial pyramid representation.
+        center_weights: Whether to apply center weights to crops.
+        pyramid_levels: List of levels for the spatial pyramid (only if pyramid=True).
+        method: Color space/method for descriptor computation ("rgb", "hs", "hsv", "rgb-hs", "rgb-hsv").
+        n_bins: Number of bins for the histograms.
+        save_pkl: Whether to save the computed descriptors as a pickle file.
+
+    Returns:
+        List of descriptors as numpy arrays.
+    """
+
     if pyramid:
         descs = []
         img_count = len(imgs)
@@ -139,9 +160,10 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
         
         if save_pkl:
             # Make directory if not setted up
+            print("Saving descriptors...")
             os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
-            
             write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}_{pyramid_levels}_pyramid_descriptors.pkl")
+
     else: 
         cropped_imgs = [_spatial_crop(im, n_crops) for im in imgs]
         descs = []
@@ -190,18 +212,17 @@ def compute_spatial_descriptors(imgs: List[np.ndarray],
                             # Multiply by the weight instead of dividing by a large power
                             cropped_img[idx] = cropped_img[idx] * weight
 
-               
-
                 # Concatenate and normalize
                 final_histogram = np.concatenate(cropped_img, axis=0) / (n_crops*n_crops)
                 descs.append(final_histogram)
+
     # Save descriptors to a pickle file
         if save_pkl:
             # Make directory if not setted up
             print("Saving descriptors...")
             os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
-            print(descs)
-            write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_{n_crops}crops_noWeights_{center_weights}_weights_descriptors.pkl")
+            # print(descs)
+            write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_{n_crops}crops_noPyramid_descriptors.pkl")
 
     return descs
         
