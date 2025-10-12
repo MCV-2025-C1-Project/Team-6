@@ -15,7 +15,7 @@ from scipy.ndimage import (binary_opening,
 from scipy.ndimage import rotate as _rotate
 
 from utils.color_spaces import rgb_to_hsv, rgb_to_lab
-from evaluations.metrics import f1_score, precision, recall, intersection_over_union
+from evaluations.metrics import mean_f1_score, mean_precision, mean_recall, mean_iou
 
 
 # we'll use it in remove_background(), avoid reallocating memory for it every time
@@ -302,7 +302,7 @@ def _evaluate_method(
     images: List[np.ndarray], 
     gts: List[np.ndarray], 
     desc: Dict[str, Any]
-) -> Tuple[Dict[str, float], List[np.ndarray]]:
+) -> Dict[str, float]:
 
     """
     Evaluates a background removal method on a set of images and ground truth masks.
@@ -312,7 +312,6 @@ def _evaluate_method(
         desc: Dictionary with the method parameters (see remove_background)
     Returns:
         scores: Dictionary with the evaluation metrics (iou, f1, precision, recall)
-        preds: List of predicted masks (H, W) where True=foreground, False=background   
     """
 
     n = min(len(images), len(gts))
@@ -320,18 +319,13 @@ def _evaluate_method(
     preds = [_to_bool_mask(p) for p in preds]
     gts   = [_to_bool_mask(gts[i]) for i in range(n)]
 
-    ious = [intersection_over_union(gt, pr) for gt, pr in zip(gts, preds)]
-    f1s  = [f1_score(gt, pr)                for gt, pr in zip(gts, preds)]
-    pres = [precision(gt, pr)               for gt, pr in zip(gts, preds)]
-    recs = [recall(gt, pr)                  for gt, pr in zip(gts, preds)]
-
     scores = {
-        "iou": float(np.mean(ious)) if ious else 0.0,
-        "f1":  float(np.mean(f1s))  if f1s  else 0.0,
-        "precision": float(np.mean(pres)) if pres else 0.0,
-        "recall":    float(np.mean(recs)) if recs else 0.0,
+        "iou": mean_iou(preds, gts),
+        "f1":  mean_f1_score(preds, gts),
+        "precision": mean_precision(preds, gts),
+        "recall": mean_recall(preds, gts)
     }
-    return scores, preds
+    return scores
 
 
 def create_grid_search_experiments(permutations: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
@@ -384,14 +378,14 @@ def find_best_mask(
 
     for desc_num, desc in enumerate(background_experiments, start=1):
         print(f"Using method {desc_num}/{len(background_experiments)}: {desc}")
-        scores, _ = _evaluate_method(images, masks_gt, desc)
+        scores = _evaluate_method(images, masks_gt, desc)
         results.append({"method": desc, "scores": scores})
         if (best is None) or (scores["iou"] > best["scores"]["iou"]) or \
            (np.isclose(scores["iou"], best["scores"]["iou"]) and scores["f1"] > best["scores"]["f1"]):
             best = {"method": desc, "scores": scores}
         print(f"Score: {scores}")
 
-    with open("./Week2/background_best_results.txt", "w") as f:
+    with open(SCRIPT_DIR / "background_best_results.txt", "w") as f:
         f.write("Best method:\n")
         for k, v in best["method"].items():
             f.write(f"  {k}: {v}\n")
