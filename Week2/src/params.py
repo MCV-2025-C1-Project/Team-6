@@ -34,7 +34,7 @@ segmentation_experiments = {
     "color_spaces": ["lab", "hsv"],
     "border_widths": [5, 10, 20], 
     "use_percentile_thresh": [True, False],
-    "percentiles": [97, 99],
+    "percentiles": [97.5, 99],
     "cov_fractions": [0.75, 0.9],
     "angle_limits": [0, 15, 30],
     "lambda_penalties": [1.0, 2.0],

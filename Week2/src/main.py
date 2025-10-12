@@ -20,6 +20,7 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     # Descriptor parameters
     desc_params = best_config_descriptors
     print("Descriptor parameters:", desc_params)
+
     # Segmentation parameters
     segm_params = best_config_segmentation
     print("Segmentation parameters:", segm_params)
@@ -29,13 +30,14 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
         print("Loading database descriptors...")
         bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{desc_params['color_space']}_{desc_params['n_bins']}bins_{desc_params['n_crops']}crops_noPyramid_descriptors.pkl")
     except FileNotFoundError:
-        print("Computing database descriptors...")
+        print("Unable to load database descriptors. Computing them...")
         bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
         bbdd_descriptors = compute_spatial_descriptors(bbdd_images, method=desc_params['color_space'], n_bins=desc_params['n_bins'], pyramid=False, n_crops=desc_params['n_crops'], save_pkl=True)
 
 
     """Process dataset of images without background."""
-    print("Processing development set without background...")
+    print("Processing dataset of images without background...")
+
     # Read query images
     images1 = read_images(dir1)
 
@@ -54,7 +56,8 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
 
 
     """Process dataset of images with background."""
-    print("Processing development set with background...")
+    print("Processing dataset of images with background...")
+    
     # Read query images
     images2 = read_images(dir2)
 

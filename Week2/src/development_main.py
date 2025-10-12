@@ -1,11 +1,14 @@
 import argparse
 from pathlib import Path
+import os
 
 import numpy as np
 
 from evaluations.similarity_measures import compute_similarities
+from evaluations.metrics import mean_average_precision
 from descriptors import compute_spatial_descriptors
 from utils.io_utils import read_images, read_pickle
+from utils.plots import plot_query_results
 from background import apply_segmentation, crop_images
 from params import best_config_segmentation, best_config_descriptors
 
@@ -16,6 +19,7 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     # Descriptor parameters
     desc_params = best_config_descriptors
     print("Descriptor parameters:", desc_params)
+
     # Segmentation parameters
     segm_params = best_config_segmentation
     print("Segmentation parameters:", segm_params)
@@ -25,13 +29,14 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
         print("Loading database descriptors...")
         bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{desc_params['color_space']}_{desc_params['n_bins']}bins_{desc_params['n_crops']}crops_noPyramid_descriptors.pkl")
     except FileNotFoundError:
-        print("Computing database descriptors...")
+        print("Unable to load database descriptors. Computing them...")
         bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
         bbdd_descriptors = compute_spatial_descriptors(bbdd_images, method=desc_params['color_space'], n_bins=desc_params['n_bins'], pyramid=False, n_crops=desc_params['n_crops'], save_pkl=True)
 
 
     """Process dataset of images without background. Task1 and Task2."""
     print("Processing development set without background...")
+
     # Read query images
     images1 = read_images(dir1)
 
@@ -44,14 +49,19 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     # Sort the indices resulting from the similarities sorting
     indices = np.argsort(similarities, axis=1)
 
-    # Save results for k
+    # Results for k best matches
     results = indices[:, :k].astype(int).tolist()
     print("Results development set (noBG):", results)
-    # write_pickle(results, SCRIPT_DIR / f"noBG_MAP@{k}.pkl")
 
+    # Compute MAP score
+    gt = read_pickle(dir1 / "gt_corresps.pkl")
+    print("Ground truths:", gt)
+    map_score = mean_average_precision(indices, gt, k)
+    print(f"MAP@{k} score: {map_score:.4f}")
 
     """Process dataset of images with background."""
     print("Processing development set with background...")
+
     # Read query images
     images2 = read_images(dir2)
 
@@ -70,14 +80,13 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     # Sort the indices resulting from the similarities sorting
     indices = np.argsort(similarities, axis=1)
 
-    # Save results for k
+    # Results for k best matches
     results = indices[:, :k].astype(int).tolist()
-    # write_pickle(results, SCRIPT_DIR / f"BG_MAP@{k}.pkl")
+    print("Results development set (BG):", results)
 
     # Compute MAP score
     gt = read_pickle(dir2 / "gt_corresps.pkl")
-    from evaluations.metrics import mean_average_precision
-    import os
+    print("Ground truths:", gt)
     map_score = mean_average_precision(indices, gt, k)
     print(f"MAP@{k} score: {map_score:.4f}")
 
@@ -85,7 +94,6 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     os.makedirs(SCRIPT_DIR / "results", exist_ok=True)
 
     # Plot results
-    from utils.plots import plot_query_results
     plot_query_results(queries=paintings, 
                        results=indices[:, :k], 
                        similarity_values=np.take_along_axis(similarities, indices[:, :k], axis=1), 
