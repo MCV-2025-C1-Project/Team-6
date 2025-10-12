@@ -1,27 +1,41 @@
 # Week 2
 
-## Contents
-1. [Introduction](#introducion)
-2. [Project Structure and overview](#project-structure-and-overview)
-3. [Development set](#Development-set)
-4. [Run the program](#run-the-program)
-
-## [Introduction](#introduction)
+## Introduction
 In **Week 2**, we build upon the Week 1 solution with two key upgrades:
 
 1. **Spatial descriptors** are added on top of color-based descriptors to capture spatial layout information of each painting.
-2. **Background segmentation** models the background color distribution so the descriptor focuses primarily on the painting.
+2. **Background segmentation** removes the background from its color so that the retrieval only works with paintings.
 
-These changes aim to improve retrieval robustness and the semantic relevance of descriptors.
+These changes aim to improve retrieval robustness and the semantic relevance of the descriptors.
 
+## Reproducing results for Task 6
 
-## [Project Structure and overview](#project-structure-and-overview)
-The main code lives in the `src/` directory. Below is a brief description of each component:
+To reproduce the results for **Task 6**, follow these steps:
 
-### Core Scripts
+1. Ensure the image database is available at the root of the project: `Team-6/BBDD`.
+2. Download the test sets for Week 2 (`qst1_w2` and `qst2_w2`). **Optional:** place them in `Team-6/Week2`.
+3. Run the main script:
+```bash
+python main.py
+```
+By default, the script looks for the test sets in the directory `Team-6/Week2`. If your test set is located elsewhere, you can specify a custom path using `-dir1` and `-dir2`:
+```bash
+python main.py -dir1 PATH_TO_TEST_SET1 -dir2 PATH_TO_TEST_SET2
+```
+> **Note:** The arguments are optional and only required if your test sets are **not** in the default location (`Team-6/Week2`).
+
+## Scripts Overview
+
+This section provides a brief description of each script in the `src` folder:
 
 - **`background.py`**  
   Methods for background segmentation and utilities to evaluate segmentation quality.
+
+- **`descriptors.py`**  
+  Computes spatial (pyramid or only grid based) descriptors from color histograms at multiple spatial levels.
+
+- **`development_main.py`**  
+  Result generation as `main.py` but for the development sets (with MAP@k computation).
 
 - **`evaluate_crop_descriptors.py`**  
   Evaluates retrieval by experimenting with cropped query images: loads precomputed BBDD descriptors, computes query descriptors, and ranks results with multiple distance metrics.
@@ -29,44 +43,16 @@ The main code lives in the `src/` directory. Below is a brief description of eac
 - **`evaluate_piramid_descriptors.py`**  
   Evaluates retrieval using spatial *pyramid* descriptors.
 
-- **`params.py`**  
-  Experiments and best configurations discovered during testing.
-
-- **`descriptors.py`**  
-  Computes spatial (pyramid or only grid based) descriptors from color histograms at multiple spatial levels.
-
-- **`development_main.py`**  
-  Result generation as `main.py` but for the development sets.
-
-Moreover there is two extra folders `evaluations` and `utils`:
-
-- **`evaluations/`**  
-  Functions to compute metrics, distances, and overall evaluation results.
-
-- **`utils/`**  
-  Helpers for color-space conversions, histogram computation/plotting, I/O, and visualization.
-
-Finally, the code is orchestarted by **`main.py`**:
 - **`main.py`**  
-  Main entry point for result generation for the test sets. It handles data loading, background segmentation, descriptor extraction, similarity computation, and evaluation of predictions.
+  Main entry point for result generation for the test sets. It handles data loading, background segmentation, descriptors extraction, similarity computation, and evaluation of predictions.
 
-## [Development set](#Development-set)
-This Week's project uses two main Development sets: 
-1) **QSD1_W2** Used for evaluating the query retreival system from Task 1.
-2) **QSD2_W2** Used for evaluating the query retrieval system + segmentation pipeline.
+- **`params.py`**  
+  Configuration for experiments and best configurations discovered during them.
 
-## [Run the program](#run-the-program)
+Moreover, there are two additional folders:
 
-To reproduce the results for Task 6, follow these steps:
-1. Download the test sets `qst1_w2` and `qst2_w2`. **Optional** place it in `Team-6/Week2/qst1_w2/` and `Team-6/Week2/qst1_w2/`, respectively.
-2. Run the main script:
-```bash
-python main.py
-```
+- **`evaluations`**  
+  Functions to compute metrics and distances.
 
-By default, the script looks for the test set in the path `Team-6/Week2/qst1_w2/`. If your test set is located elsewhere, you can specify a custom path using `-d`:
-```bash
-python main.py -d PATH_TO_TEST_SET
-```
-> **Note:** The `-d` argument is optional and only required if your test set is **not** in the default location (`Team-6/Week1/qst1_w1/`).
-
+- **`utils`**  
+  Helpers for color conversion, histogram computation, I/O operations, and visualization.
