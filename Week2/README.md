@@ -3,7 +3,7 @@
 ## Contents
 1. [Introduction](#introducion)
 2. [Project Structure and overview](#project-structure-and-overview)
-3. [Database](#database)
+3. [Development set](#Development-set)
 4. [Run the program](#run-the-program)
 
 ## [Introduction](#introduction)
@@ -32,8 +32,11 @@ The main code lives in the `src/` directory. Below is a brief description of eac
 - **`params.py`**  
   Experiments and best configurations discovered during testing.
 
-- **`piramid_descriptors.py`**  
-  Computes spatial (pyramid-based) descriptors from color histograms at multiple spatial levels.
+- **`descriptors.py`**  
+  Computes spatial (pyramid or only grid based) descriptors from color histograms at multiple spatial levels.
+
+- **`development_main.py`**  
+  Result generation as `main.py` but for the development sets.
 
 Moreover there is two extra folders `evaluations` and `utils`:
 
@@ -45,10 +48,10 @@ Moreover there is two extra folders `evaluations` and `utils`:
 
 Finally, the code is orchestarted by **`main.py`**:
 - **`main.py`**  
-  Main entry point for result generation. It handles data loading, background segmentation, descriptor extraction, similarity computation, and evaluation of predictions.
+  Main entry point for result generation for the test sets. It handles data loading, background segmentation, descriptor extraction, similarity computation, and evaluation of predictions.
 
-## [Database](#database)
-This Week's project uses two main databases: 
+## [Development set](#Development-set)
+This Week's project uses two main Development sets: 
 1) **QSD1_W2** Used for evaluating the query retreival system from Task 1.
 2) **QSD2_W2** Used for evaluating the query retrieval system + segmentation pipeline.
 
