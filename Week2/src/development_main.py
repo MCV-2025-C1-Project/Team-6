@@ -8,7 +8,7 @@ from evaluations.similarity_measures import compute_similarities
 from evaluations.metrics import mean_average_precision
 from descriptors import compute_spatial_descriptors
 from utils.io_utils import read_images, read_pickle
-from utils.plots import plot_query_results
+from utils.plots import plot_segmentation_results
 from background import apply_segmentation, crop_images
 from params import best_config_segmentation, best_config_descriptors
 
@@ -66,7 +66,7 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     images2 = read_images(dir2)
 
     # Detect BG from images
-    masks = apply_segmentation(images2, segm_params, save_plot=True)
+    masks = apply_segmentation(images2, segm_params)
 
     # Crop paintings
     paintings = crop_images(images2, masks)
@@ -94,11 +94,12 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     os.makedirs(SCRIPT_DIR / "results", exist_ok=True)
 
     # Plot results
-    plot_query_results(queries=paintings, 
-                       results=indices[:, :k], 
-                       similarity_values=np.take_along_axis(similarities, indices[:, :k], axis=1), 
-                       k=k, 
-                       save_path=SCRIPT_DIR / "results" / "query_results.png")
+    plot_segmentation_results(queries=images2,
+                            cropped_images=paintings,
+                            results=indices[:, :k],
+                            similarity_values=np.take_along_axis(similarities, indices[:, :k], axis=1),
+                            k=k,
+                            save_path=SCRIPT_DIR / "results" / "segmentation_results.png")
 
 
 if __name__ == "__main__":

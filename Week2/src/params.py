@@ -30,18 +30,32 @@ best_config2 = {
 }
 
 # Grid Search for best segmentation technique
+# segmentation_experiments = {
+#     "color_spaces": ["lab", "hsv"],
+#     "border_widths": [5, 10, 20], 
+#     "use_percentile_thresh": [True, False],
+#     "percentiles": [97.5, 99],
+#     "cov_fractions": [0.75, 0.9],
+#     "angle_limits": [0, 15, 30],
+#     "lambda_penalties": [1.0, 2.0],
+#     "min_fracs": [0.5, 0.8],
+#     "steps": [4],
+#     "use_best_square": [True, False]
+# }
+
 segmentation_experiments = {
-    "color_spaces": ["lab", "hsv"],
-    "border_widths": [5, 10, 20], 
+    "color_space": ["lab", "hsv"],
+    "border_width": [10, 20], 
     "use_percentile_thresh": [True, False],
-    "percentiles": [97.5, 99],
-    "cov_fractions": [0.75, 0.9],
-    "angle_limits": [0, 15, 30],
-    "lambda_penalties": [1.0, 2.0],
-    "min_fracs": [0.5, 0.8],
-    "steps": [4],
-    "use_best_square": [True, False]
+    "percentile": [97.5, 99],
+    "cov_fraction": [0.75, 0.9],
+    # "angle_limits": [0, 15, 30],
+    "lambda_penalty": [2.0],
+    "min_frac": [0.5],
+    "step": [4],
+    "use_bs": [True]
 }
+
 
 best_config_segmentation = {
     'color_space': 'lab', 

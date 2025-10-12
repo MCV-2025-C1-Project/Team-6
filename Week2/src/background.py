@@ -280,8 +280,8 @@ def remove_background(img: np.ndarray, method: dict) -> np.ndarray:
     org_mask = binary_fill_holes(foreground) # light cleanup
 
     if method["use_best_square"]:
-        rect_mask = best_centered_rect_mask(org_mask, min_frac=method["min_frac"], step=method["step"], lambda_penalty=method["lambda_penalty"])
-        org_mask = best_rotated_mask(org_mask, rect_mask, angle_limit=method["angle_limit"], lambda_penalty=method["lambda_penalty"])
+        org_mask = best_centered_rect_mask(org_mask, min_frac=method["min_frac"], step=method["step"], lambda_penalty=method["lambda_penalty"])
+        # org_mask = best_rotated_mask(org_mask, rect_mask, angle_limit=method["angle_limit"], lambda_penalty=method["lambda_penalty"])
 
     return org_mask.astype(bool)
 
@@ -329,12 +329,16 @@ def _evaluate_method(
 
 
 def create_grid_search_experiments(permutations: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
+    """
+    Create a list of all combinations of hyperparameters for grid search.
+    """
+
     experiments = []
 
     for (color_space, border_width, use_perc, percentile, cov_fraction,
-         angle_limit, lambda_penalty, min_frac, step, use_bs) in itertools.product(
+          lambda_penalty, min_frac, step, use_bs) in itertools.product( # angle_limit,
             permutations["color_space"],  permutations["border_width"], permutations["use_percentile_thresh"],
-            permutations["percentile"], permutations["cov_fraction"], permutations["angle_limit"], 
+            permutations["percentile"], permutations["cov_fraction"], # permutations["angle_limit"], 
             permutations["lambda_penalty"], permutations["min_frac"], permutations["step"], 
             permutations["use_bs"]):
         exp = {
@@ -343,7 +347,7 @@ def create_grid_search_experiments(permutations: Dict[str, List[Any]]) -> List[D
             "use_percentile_thresh": use_perc,
             "percentile": percentile,
             "cov_fraction": cov_fraction,
-            "angle_limit": angle_limit,
+            # "angle_limit": angle_limit,
             "lambda_penalty": lambda_penalty,
             "min_frac": min_frac,
             "step": step,
@@ -454,3 +458,24 @@ def crop_images(images: List[np.ndarray], masks: List[np.ndarray]) -> List[np.nd
         cropped = img[y_min:y_max+1, x_min:x_max+1]
         cropped_images.append(cropped)
     return cropped_images
+
+
+if __name__ == "__main__":
+    
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-dir', '--data-dir',
+        type=Path,
+        default=SCRIPT_DIR.parent / "qsd2_w2",
+        help='Path to a directory of images without background.'
+    )
+    dir = parser.parse_args().data_dir
+
+    from utils.io_utils import read_images
+    images2 = read_images(dir)
+    gt = read_images(dir, extension="png")  # ground truth masks
+
+
+    from params import segmentation_experiments
+    find_best_mask(images2, gt, segmentation_experiments)

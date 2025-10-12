@@ -62,7 +62,7 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     images2 = read_images(dir2)
 
     # Detect BG from images
-    masks = apply_segmentation(images2, segm_params)
+    masks = apply_segmentation(images2, segm_params, save_plot=True)
 
     # Crop paintings
     paintings = crop_images(images2, masks)
