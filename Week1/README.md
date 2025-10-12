@@ -19,7 +19,7 @@ python main.py -d PATH_TO_TEST_SET
 
 ## Scripts Overview
 
-This section provides a brief description of each script:
+This section provides a brief description of each script in the `src` folder:
 
 - **`main.py`**  
   Main entry point for result generation. It handles data loading, descriptor extraction, similarity computation, and evaluation of predictions.

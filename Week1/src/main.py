@@ -23,7 +23,7 @@ def main(
     try:
         bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_bins}bins_descriptors.pkl")
     except FileNotFoundError:
-        bbdd_images = read_images(SCRIPT_DIR.parent / "BBDD")
+        bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
         bbdd_descriptors = compute_descriptors(bbdd_images, method, n_bins)
 
     # Compute query images descriptors
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '-d', '--data-dir',
         type=Path,
-        default=SCRIPT_DIR / "qst1_w1",
+        default=SCRIPT_DIR.parent / "qst1_w1",
         help='Path to the dataset directory.'
     )
     data_dir = parser.parse_args().data_dir

@@ -5,7 +5,10 @@
 *.txt
 
 # Avoid uploading datasets
-Week1/BBDD
+BBDD
+Week1/qsd1_w1
+Week1/descriptors
+Week2/qsd2_w2
 
 # Ignore cache files
 __pycache__
