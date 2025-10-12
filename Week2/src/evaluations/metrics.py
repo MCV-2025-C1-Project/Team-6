@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List
+from typing import List, Callable
 
 
 def mean_average_precision(predictions: np.ndarray, gt: List[List[int]], k=10) -> float:
@@ -79,62 +79,41 @@ def intersection_over_union(prediction: np.ndarray, ground_truth: np.ndarray) ->
     
     return intersection / union
 
+def compute_mean(predictions: List[np.ndarray], 
+                 ground_truths: List[np.ndarray], 
+                 metric: Callable[[np.ndarray, np.ndarray], float]) -> float:
+    """
+    Compute mean value metric across multiple prediction-ground truth pairs
+    """
+    total_metric = 0.0
+    for pred, gt in zip(predictions, ground_truths):
+        total_metric += metric(pred, gt)
+    
+    return total_metric / len(predictions)
+
 def mean_precision(predictions: List[np.ndarray], ground_truths: List[np.ndarray]) -> float:
     """
     Calculate mean precision across multiple prediction-ground truth pairs
     """
-    total_precision = 0.0
-    for pred, gt in zip(predictions, ground_truths):
-        total_precision += precision(pred, gt)
-    
-    return total_precision / len(predictions)
+    return compute_mean(predictions, ground_truths, precision)
 
 def mean_recall(predictions: List[np.ndarray], ground_truths: List[np.ndarray]) -> float:
     """
     Calculate mean recall across multiple prediction-ground truth pairs
     """
-    total_recall = 0.0
-    for pred, gt in zip(predictions, ground_truths):
-        total_recall += recall(pred, gt)
-    
-    return total_recall / len(predictions)
+    return compute_mean(predictions, ground_truths, recall)
 
 def mean_f1_score(predictions: List[np.ndarray], ground_truths: List[np.ndarray]) -> float:
     """
     Calculate mean F1 score across multiple prediction-ground truth pairs
     """
-    total_f1 = 0.0
-    for pred, gt in zip(predictions, ground_truths):
-        total_f1 += f1_score(pred, gt)
-    
-    return total_f1 / len(predictions)
-
-def mean_f1_from_metrics(mean_precision: float, mean_recall: float) -> float:
-    """
-    Calculate F1 score from pre-computed mean precision and recall
-    """
-    if mean_precision + mean_recall == 0:
-        return 0.0
-    return 2 * (mean_precision * mean_recall) / (mean_precision + mean_recall)
+    return compute_mean(predictions, ground_truths, f1_score)
 
 def mean_iou(predictions: List[np.ndarray], ground_truths: List[np.ndarray]) -> float:
     """
     Calculate mean Intersection over Union (IoU) across multiple prediction-ground truth pairs
     """
-    total_iou = 0.0
-    for pred, gt in zip(predictions, ground_truths):
-        total_iou += intersection_over_union(pred, gt)
-    
-    return total_iou / len(predictions)
-
-def evaluation(predictions: List[np.ndarray], ground_truths: List[np.ndarray]):
-
-    precision = mean_precision(predictions, ground_truths)
-    recall = mean_recall(predictions, ground_truths)
-    f1_score = mean_f1_from_metrics(precision, recall)
-    iou = mean_iou(predictions, ground_truths)
-
-    return precision, recall, f1_score, iou
+    return compute_mean(predictions, ground_truths, intersection_over_union)
 
 
 if __name__ == "__main__":
@@ -176,9 +155,7 @@ if __name__ == "__main__":
     predictions.append(pred4)
     ground_truths.append(gt4)
 
-    mean_prec, mean_rec, mean_f1, mean_iou = evaluation(predictions, ground_truths)
-
-    print("Mean Precision:", mean_prec)
-    print("Mean Recall:", mean_rec)
-    print("Mean F1 Score:", mean_f1)
-    print("Mean IoU:", mean_iou)
+    print("Mean Precision:", mean_average_precision(predictions, ground_truths))
+    print("Mean Recall:", mean_recall(predictions, ground_truths))
+    print("Mean F1 Score:", mean_f1_score(predictions, ground_truths))
+    print("Mean IoU:", mean_iou(predictions, ground_truths))
