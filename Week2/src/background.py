@@ -257,7 +257,7 @@ def remove_background(img: np.ndarray, method: dict) -> np.ndarray:
         d2_s = np.einsum('ij,ij->i', delta_s @ cov_inv, delta_s)
         threshold = np.percentile(d2_s, method["percentile"])
     else:
-        threshold = chi2.ppf(method["percentile"] / 100.0, df=2)
+        threshold = np.sqrt(chi2.ppf(method["percentile"] / 100.0, df=2))
 
     mask_bg = (d2 <= threshold)
 
