@@ -103,3 +103,23 @@ def rgb_to_lab(rgb: np.ndarray) -> np.ndarray:
     """sRGB (D65) -> Lab (float32)."""
     xyz = rgb_to_xyz(rgb)      
     return xyz_to_lab(xyz)
+
+def rgb_to_ycrcb(img_rgb: np.ndarray) -> np.ndarray:
+    """
+    RGB -> YCrCb, same as OpenCV's COLOR_RGB2YCrCb.
+    Returns uint8 (H, W, 3) with channels [Y, Cr, Cb]
+    """
+    x = img_rgb.astype(np.float32)
+
+    # Coeffs per BT.601 full-range (OpenCV)
+    # Y  =  0.299 R + 0.587 G + 0.114 B
+    # Cr = 128 + 0.5 R - 0.418688 G - 0.081312 B
+    # Cb = 128 - 0.168736 R - 0.331264 G + 0.5     B
+    M = np.array([[ 0.299    ,  0.587    ,  0.114    ],
+                  [ 0.5      , -0.418688 , -0.081312 ],
+                  [-0.168736 , -0.331264 ,  0.5      ]], dtype=np.float32)
+    bias = np.array([0.0, 128.0, 128.0], dtype=np.float32)
+
+    ycrcb = x @ M.T + bias
+    ycrcb = np.clip(np.rint(ycrcb), 0, 255).astype(np.uint8)
+    return ycrcb
