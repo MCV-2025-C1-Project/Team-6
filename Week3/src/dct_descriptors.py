@@ -8,7 +8,7 @@ import cv2
 from evaluations.metrics import mean_average_precision
 from utils.io_utils import read_pickle
 from evaluations.similarity_measures import compute_similarities
-from params import lbp_testing
+
 from utils.color_spaces import rgb_to_hsv
 from utils.histogram import histogram
 from utils.io_utils import write_pickle, read_images
@@ -59,6 +59,7 @@ def compute_DCT_descriptors(
     n_crops: int = 12,
     save_pkl: bool = False,
     remove_border: bool = False,
+    median_filter: bool = False,
 ) -> List[np.ndarray]:
     
     """
@@ -78,6 +79,10 @@ def compute_DCT_descriptors(
         List of descriptors as numpy arrays.
     """
     
+    if median_filter:
+        imgs = [cv2.medianBlur(img, 5) for img in imgs]
+
+
     if remove_border:
         tmp = []
         for img in imgs:
@@ -136,16 +141,17 @@ def compute_DCT_descriptors(
 if __name__=="__main__":
     print("Reading BBDD images...")
     bbdd_imgs = read_images(SCRIPT_DIR.parent.parent / "BBDD")
-    query_imgs = read_images(SCRIPT_DIR.parent / "qsd1_w3")
-    gt = read_pickle(SCRIPT_DIR.parent / "qsd1_w3" / "gt_corresps.pkl")
+    query_imgs = read_images(SCRIPT_DIR.parent / "qsd1_w1")
+    gt = read_pickle(SCRIPT_DIR.parent / "qsd1_w1" / "gt_corresps.pkl")
+
     
     grid_search = True   
     scores = {}
     if grid_search:
         
-        for n_crop in range(3,5):
+        for n_crop in range(4,5):
             for coef in  [80,90,100,110,120]:
-                for method in ["dct-sv","dct-rgb","dct-xyz"]:
+                for method in ["dct-rgb","dct-xyz"]:
                     data_descriptor = compute_DCT_descriptors(bbdd_imgs,n_crops=n_crop,n_coefs=coef, method=method,  save_pkl=False)
                     query_descriptor = compute_DCT_descriptors(query_imgs, n_crops=n_crop,n_coefs=coef, method=method,  save_pkl=False)
 
