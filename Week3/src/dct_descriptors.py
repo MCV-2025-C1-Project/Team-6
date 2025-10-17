@@ -59,7 +59,6 @@ def compute_DCT_descriptors(
     n_crops: int = 12,
     save_pkl: bool = False,
     remove_border: bool = False,
-    median_filter: bool = False,
 ) -> List[np.ndarray]:
     
     """
@@ -78,10 +77,6 @@ def compute_DCT_descriptors(
     Returns:
         List of descriptors as numpy arrays.
     """
-    
-    if median_filter:
-        imgs = [cv2.medianBlur(img, 5) for img in imgs]
-
 
     if remove_border:
         tmp = []
@@ -134,7 +129,7 @@ def compute_DCT_descriptors(
         print("Saving descriptors...")
         os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
 
-        write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}.pkl")
+        write_pickle(descs, SCRIPT_DIR / "descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl")
 
     return descs
         
@@ -179,3 +174,6 @@ if __name__=="__main__":
                     print(f"MAP@{1} score: {map_score:.4f}, using {n_crop} crops, {coef} coefficients.")
                     with open(SCRIPT_DIR / "outputs" / f"{method}_map_scores.txt", "a") as f:
                                 f.write(f"MAP@{1} score: {map_score:.4f}, using {method}, {n_crop} crops, {coef} coefficient.\n")
+
+    else:
+         data_descriptor = compute_DCT_descriptors(bbdd_imgs,n_crops=4,n_coefs=80, method="dct-rgb",  save_pkl=True)

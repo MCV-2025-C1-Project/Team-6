@@ -14,3 +14,9 @@ noise_search_space = {
     "chr_chroma": [0.25, 0.30, 0.35],
     "vol_blur": [80.0]
     }   
+
+best_desc_params = {
+    "method": "dct-rgb",
+    "n_crops": 4,
+    "n_coefs": 80
+    }

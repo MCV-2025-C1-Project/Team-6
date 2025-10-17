@@ -3,7 +3,8 @@ from pathlib import Path
 
 import numpy as np
 
-from texture_descriptors import compute_texture_desc
+from dct_descriptors import compute_DCT_descriptors
+
 from background import apply_segmentation
 from evaluations.similarity_measures import compute_similarities
 from filter_noise import denoise_batch, plot_image_comparison
@@ -27,17 +28,21 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     desc_params = best_desc_params
     print("Descriptor parameters:", desc_params)
 
+    n_crops = desc_params["n_crops"]
+    n_coefs = desc_params["n_coefs"]
+    method = desc_params["method"]
+
     # Segmentation parameters
     segm_params = best_segmentation_params
     print("Segmentation parameters:", segm_params)
 
     try:
         print("Loading database descriptors...")
-        bbdd_descriptors = read_pickle() # Load descriptors from correct path
+        bbdd_descriptors = read_pickle(SCRIPT_DIR.parent /"descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
     except FileNotFoundError:
         print("Unable to load database descriptors. Computing them...")
         bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
-        bbdd_descriptors = compute_texture_desc() # Add correct path
+        bbdd_descriptors = compute_DCT_descriptors(bbdd_images,n_crops=n_crops,n_coefs=n_coefs, method=method,  save_pkl=True) # Add correct path
 
     """Process dataset of images without background."""
     print("Processing dataset of images without background...")
@@ -50,7 +55,10 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     plot_image_comparison(images1, non_noisy_img1, 5) # plot 5 comparison images
 
     # Compute query images descriptors
-    descriptors = compute_texture_desc(non_noisy_img1, method=) #TODO: Check how this will work
+
+    
+
+    descriptors = compute_DCT_descriptors(non_noisy_img1,n_crops=n_crops,n_coefs=n_coefs, method=method,  save_pkl=False) #TODO: Check how this will work
 
     # Compute similarities
     similarities = compute_similarities(descriptors, bbdd_descriptors, desc_params["metric"])
@@ -79,7 +87,7 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
     paintings = crop_images(images2, masks) #TODO: do we do this this week?
 
     # Compute query images descriptors
-    descriptors = compute_texture_desc(paintings, method=) #TODO: Check how this will work
+    descriptors = compute_DCT_descriptors(paintings,n_crops=n_crops,n_coefs=n_coefs, method=method,  save_pkl=False) 
 
     # Compute similarities
     similarities = compute_similarities(descriptors, bbdd_descriptors, desc_params["metric"])
