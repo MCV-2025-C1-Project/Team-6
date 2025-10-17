@@ -123,7 +123,9 @@ def compute_DCT_descriptors(
     for cropped_img in initial_descs:
 
             # Concatenate and normalize
-            final_histogram = np.concatenate(cropped_img, axis=0) / (n_crops*n_crops)
+            final_histogram = np.concatenate(cropped_img, axis=0) / (n_crops*n_crops) 
+            #TODO: This normalization lacks to be of unit length (it is just the average)
+            # final_histogram = final_histogram / np.linalg.norm(final_histogram)  MIGHT NEED TO ADD THIS HERE
             descs.append(final_histogram)
 
     # Save descriptors to a pickle file

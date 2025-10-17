@@ -1,5 +1,6 @@
 """This script removes noise from pictures by using filters """
 import argparse
+from typing import List
 from itertools import product
 from pathlib import Path
 
@@ -10,25 +11,13 @@ from scipy.ndimage import uniform_filter
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim
 
+from params import best_noise_params, noise_search_space
 from utils.io_utils import read_images
 from utils.color_spaces import rgb_to_ycrcb
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-THRESHOLDS  = {
-        "sp_impulse": 0.06,   
-        "sig_gauss":  0.05,   
-        "blk_jpeg":   1.30,   
-        "chr_chroma": 0.25,   
-        "vol_blur":   80.0    
-    }
-
-SEARCH_SPACE = {
-    "sp_impulse": [0.06, 0.08, 0.10],
-    "sig_gauss":  [0.05, 0.06, 0.07],
-    "blk_jpeg":   [1.30, 1.35, 1.40],
-    "chr_chroma": [0.25, 0.30, 0.35],
-    "vol_blur": [80.0]
-}
+THRESHOLDS  = best_noise_params  
+SEARCH_SPACE = noise_search_space 
 
 
 ### Helpers ###
@@ -58,6 +47,18 @@ def _vis_compat(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     if a.dtype != b.dtype:
         b = b.astype(a.dtype)
     return a, b
+
+def plot_image_comparison(den_images: List[np.ndarray], og_images: List[np.ndarray], max_imgs: int=None) -> None:
+    for i, (denoised, original) in enumerate(zip(den_images, og_images)):
+        if max_imgs is not None and i >= max_imgs:
+            break
+        img_vis, den_vis = _vis_compat(original, denoised)
+        final = np.hstack([img_vis, den_vis])
+    
+        cv2.imshow('Original vs denoised image', final)
+        cv2.waitKey(0)
+
+    cv2.destroyAllWindows()
 
 # Filters
 def mean_filter(image: np.ndarray, kernel_size: tuple = (3, 3, 1)) -> np.ndarray:
@@ -512,12 +513,6 @@ if __name__=="__main__":
 
     # Compute score of best implementation
     scores, mean_score = eval_batch(og_images, den_images, gt_images)
-    # Plot results
-    for denoised, original in zip(den_images, og_images):
-        img_vis, den_vis = _vis_compat(original, denoised)
-        final = np.hstack([img_vis, den_vis])
-    
-        cv2.imshow('Original vs denoised image', final)
-        cv2.waitKey(0)
 
-    cv2.destroyAllWindows()
+    # Plot results
+    plot_image_comparison(den_images, og_images, 10)
