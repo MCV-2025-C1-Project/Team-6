@@ -703,7 +703,7 @@ if __name__=="__main__":
         raise ValueError(f"{dir2} is not a valid directory.")
     
     # Make sure output directory exists
-    (SCRIPT_DIR / "ouputs").mkdir(exist_ok=True)
+    (SCRIPT_DIR / "outputs").mkdir(exist_ok=True)
 
     # Read original image (with noise)
     og_images = list(read_images(dir1))
@@ -722,7 +722,7 @@ if __name__=="__main__":
         print(f"Best mean score: {best_score:.4f}")
 
         # Save the results to a file
-        with open(SCRIPT_DIR / "ouputs" / "best_thresholds.txt", "w") as f:
+        with open(SCRIPT_DIR / "outputs" / "best_thresholds.txt", "w") as f:
             f.write("Best thresholds found:\n")
             for k, v in best_thr.items():
                 f.write(f"  {k}: {v}\n")
