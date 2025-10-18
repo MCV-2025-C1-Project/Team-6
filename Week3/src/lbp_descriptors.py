@@ -186,9 +186,9 @@ def compute_LBP_descriptors(
 
     # Aggregate patch descriptors for each image
     for cropped_img in initial_descs:
-            # Concatenate and normalize
-            final_histogram = np.concatenate(cropped_img, axis=0) / (n_crops*n_crops)
-            descs.append(final_histogram)
+        # Concatenate and normalize
+        final_histogram = np.concatenate(cropped_img, axis=0) / (n_crops*n_crops)
+        descs.append(final_histogram)
 
     # Save descriptors to a pickle file
     if save_pkl:
@@ -229,7 +229,7 @@ if __name__=="__main__":
     if not dir.is_dir():
         raise ValueError(f"{dir} is not a valid directory.")
     if not bd_dir.is_dir():
-         raise ValueError(f"{bd_dir} is not a valid directory.")
+        raise ValueError(f"{bd_dir} is not a valid directory.")
     
     # Make sure output directory exists
     (SCRIPT_DIR / "outputs").mkdir(exist_ok=True)

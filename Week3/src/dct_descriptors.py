@@ -192,7 +192,7 @@ if __name__=="__main__":
     if not dir.is_dir():
         raise ValueError(f"{dir} is not a valid directory.")
     if not bd_dir.is_dir():
-         raise ValueError(f"{bd_dir} is not a valid directory.")
+        raise ValueError(f"{bd_dir} is not a valid directory.")
     
     # Make sure output directory exists
     (SCRIPT_DIR / "outputs").mkdir(exist_ok=True)
@@ -226,7 +226,7 @@ if __name__=="__main__":
                     # Print and save scores por MAP@5
                     print(f"MAP@{5} score: {map_score:.4f}, using {n_crop} crops, {coef} coefficients.")
                     with open(SCRIPT_DIR / "outputs" / f"{method}_map_scores.txt", "a") as f:
-                                f.write(f"MAP@{5} score: {map_score:.4f}, using {method}, {n_crop} crops, {coef} coefficient.\n")
+                        f.write(f"MAP@{5} score: {map_score:.4f}, using {method}, {n_crop} crops, {coef} coefficient.\n")
                     
                     results_indices = indices[:, :1]
                     results_similarities = sorted_sims[:, :1]        
@@ -235,7 +235,7 @@ if __name__=="__main__":
                     # Print and save scores por MAP@1
                     print(f"MAP@{1} score: {map_score:.4f}, using {n_crop} crops, {coef} coefficients.")
                     with open(SCRIPT_DIR / "outputs" / f"{method}_map_scores.txt", "a") as f:
-                                f.write(f"MAP@{1} score: {map_score:.4f}, using {method}, {n_crop} crops, {coef} coefficient.\n")
+                        f.write(f"MAP@{1} score: {map_score:.4f}, using {method}, {n_crop} crops, {coef} coefficient.\n")
     else:
         # Compute descriptor with the best parameters
         data_descriptor = compute_DCT_descriptors(bbdd_imgs, 
