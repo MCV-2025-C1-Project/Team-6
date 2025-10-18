@@ -18,7 +18,7 @@ best_noise_params = {
     "vol_blur":   80.0    
 }
 
-# Parameteres for the Grid Search
+# Parameteres for Noise Grid Search
 noise_search_space = {
     "sp_impulse": [0.06, 0.08, 0.10],
     "sig_gauss":  [0.05, 0.06, 0.07],
@@ -27,11 +27,29 @@ noise_search_space = {
     "vol_blur": [80.0]
 }   
 
+# Parameters for DCT Grid Search
+dct_search_space = {
+    "method": ["dct-rgb","dct-xyz"],
+    "n_crops": [4],
+    "n_coefs": [80,90,100,110,120]
+}
 
-best_desc_params = {
+# Best parameters for descriptor DCT
+best_desc_params_dct = {
     "method": "dct-rgb",
     "n_crops": 4,
-    "n_coefs": 80
+    "n_coefs": 90
+}
+
+# NOTHING TO ADD BECAUSE OF ITS IRRELEVANCE
+# Parameters for LBP Grid Search
+lbp_search_space = {
+
+}
+
+# Best parameters for descriptor LBP
+best_desc_params_lbp = {
+
 }
 
 
