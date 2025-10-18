@@ -38,7 +38,7 @@ dct_search_space = {
 best_desc_params_dct = {
     "method": "dct-rgb",
     "n_crops": 4,
-    "n_coefs": 90
+    "n_coefs": 80
 }
 
 # NOTHING TO ADD BECAUSE OF ITS IRRELEVANCE

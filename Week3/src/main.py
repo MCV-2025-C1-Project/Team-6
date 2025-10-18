@@ -1,103 +1,177 @@
+"""
+For development set qsd1_w3
+"""
+
+import cv2
 import argparse
+import numpy as np
 from pathlib import Path
 
-import numpy as np
-
 from dct_descriptors import compute_DCT_descriptors
-
-from background import apply_segmentation
+from background_remover import remove_background_morphological_gradient, crop_images
+from image_split import split_image
+from evaluations.metrics import mean_average_precision
 from evaluations.similarity_measures import compute_similarities
 from filter_noise import denoise_batch, plot_image_comparison
 from utils.io_utils import read_images, read_pickle, write_pickle
-from params import best_desc_params, best_noise_params, best_segmentation_params
+from params import best_desc_params_dct, best_noise_params
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+BEST_THRESHOLDS = best_noise_params
+BEST_DESC = best_desc_params_dct
+
+
+def remove_background(images: list[np.ndarray]):
+    """
+    Removes the background from a list of images.
+    Returns a list of boolean masks.
+    """
+    predictions = []
+    
+    # Remove background of images
+    for i, image in enumerate(images):
+        parts = split_image(image) 
+        masks = []
+        for part in parts:
+            _, pred_mask, _, _ = remove_background_morphological_gradient(part)
+            masks.append(pred_mask.astype(bool))
+
+        # Combine results of all components
+        if len(masks) == 1:
+            mask_final = masks[0] 
+        else:   
+            mask_final = np.concatenate(masks, axis=1) 
+
+        predictions.append(mask_final)
+
+    return predictions
+
+
+def process_images(images: list[np.ndarray], denoise: bool = False, background: bool = False):
+    """
+    Applies denoising and/or background removal to a list of images.
+    """
+
+    # Copy to avoid unintended side effects
+    processed_images = [img.copy() for img in images]
+    
+    if denoise:
+        print("- Denoising images -")
+        print("Noise removal parameters: ", BEST_THRESHOLDS)
+        processed_images = denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
+        # plot_image_comparison(images1, non_noisy_img1, 5) # plot 5 comparison images
+    else:
+        print("No denoising of images")
+
+    if background:
+        print("- Background removal -")
+        masks = remove_background(processed_images)
+        processed_images = crop_images(processed_images, masks)
+    else:
+        print("No background removal")
+
+    return processed_images
+    
 
 
 def main(dir1: Path, dir2: Path, k: int = 10) -> None:
 
     # Create outputs dir where pkl files will be saved
-    outputs_dir = SCRIPT_DIR / "outputs"
+    outputs_dir = SCRIPT_DIR / "outputs" 
     outputs_dir.mkdir(exist_ok=True)
 
-    # Noise removal params
-    noise_params = best_noise_params
-    print("Noise removal parameters:", noise_params)
+    # Central output file for this run
+    output_log_file = outputs_dir / "tasca4_evaluation_log.txt"
 
-    # Descriptor parameters
-    desc_params = best_desc_params
-    print("Descriptor parameters:", desc_params)
+    print("- Applying BBDD descriptors -")
+    print("Descriptor parameters:", BEST_DESC)
 
-    n_crops = desc_params["n_crops"]
-    n_coefs = desc_params["n_coefs"]
-    method = desc_params["method"]
+    n_crops = BEST_DESC["n_crops"]
+    n_coefs = BEST_DESC["n_coefs"]
+    method = BEST_DESC["method"]
 
-    # Segmentation parameters
-    segm_params = best_segmentation_params
-    print("Segmentation parameters:", segm_params)
-
+    # Load/Compute bbdd descriptors
     try:
         print("Loading database descriptors...")
-        bbdd_descriptors = read_pickle(SCRIPT_DIR.parent /"descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
+        bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
     except FileNotFoundError:
         print("Unable to load database descriptors. Computing them...")
         bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
-        bbdd_descriptors = compute_DCT_descriptors(bbdd_images,n_crops=n_crops,n_coefs=n_coefs, method=method,  save_pkl=True) # Add correct path
-
-    """Process dataset of images without background."""
-    print("Processing dataset of images without background...")
-
-    # Read query images
-    images1 = read_images(dir1)
-
-    # Remove noise
-    non_noisy_img1 = denoise_batch(images1, thresholds=best_noise_params)
-    plot_image_comparison(images1, non_noisy_img1, 5) # plot 5 comparison images
-
-    # Compute query images descriptors
-
+        bbdd_descriptors = compute_DCT_descriptors(bbdd_images, n_crops=n_crops, n_coefs=n_coefs, method=method, save_pkl=True) # Add correct path
     
+    # Group tasks by dataset for clarity
+    tasks = [
+        {
+            "name": "QSD1_NoDenoise_NoBG",
+            "images": read_images(dir1),
+            "denoise": False,
+            "background": False,
+            "gt": read_pickle(dir1 / "gt_corresps.pkl")
+        },
+        {
+            "name": "QSD1_Denoised_NoBG",
+            "images": read_images(dir1), # Read again to get a fresh copy
+            "denoise": True,
+            "background": False,
+            "gt": read_pickle(dir1 / "gt_corresps.pkl")
+        },
+        {
+            "name": "QSD2_NoDenoise_BGRemoved",
+            "images": read_images(dir2), 
+            "denoise": False,
+            "background": True,
+            "gt": read_pickle(dir2 / "gt_corresps.pkl")
+        },
+        {
+            "name": "QSD2_Denoised_BGRemoved",
+            "images": read_images(dir2), # Read again to get a fresh copy
+            "denoise": True,
+            "background": True,
+            "gt": read_pickle(dir2 / "gt_corresps.pkl")
+        }
+    ]
+    
+    print("\n--- Starting Pipeline ---")
+    with open(output_log_file, 'w') as f:
+        f.write("Evaluation Results\n")
+        f.write(f"Descriptor: {method}, Crops: {n_crops}, Coefs: {n_coefs}\n")
+        f.write(f"Noise Params: {BEST_THRESHOLDS}\n")
+        f.write("="*30 + "\n\n")
 
-    descriptors = compute_DCT_descriptors(non_noisy_img1,n_crops=n_crops,n_coefs=n_coefs, method=method,  save_pkl=False) #TODO: Check how this will work
+        for task in tasks:
+            print(f"\nProcessing task: {task['name']}")
+            f.write(f"--- Task: {task['name']} ---\n")
 
-    # Compute similarities
-    similarities = compute_similarities(descriptors, bbdd_descriptors, desc_params["metric"])
+            # Process Images 
+            processed_images = process_images(task["images"], denoise=task["denoise"], background=task["background"])
 
-    # Sort the indices resulting from the similarities sorting
-    indices = np.argsort(similarities, axis=1)
+            # Compute Query Descriptors
+            print(f"Computing descriptors for {task['name']}...")
+            query_descriptors = compute_DCT_descriptors(processed_images, n_crops=n_crops, n_coefs=n_coefs, method=method)
 
-    # Save results for k
-    results = indices[:, :k].astype(int).tolist()
-    write_pickle(results, outputs_dir / NAME) #TODO: Check
+            # Compute Similarities
+            similarities = compute_similarities(query_descriptors, bbdd_descriptors, metric="euclidean") # Euclidean (?) TEMPORAL
 
-    """Process dataset of images with background."""
-    print("Processing dataset of images with background...")
+            # Evaluate
+            indices = np.argsort(similarities, axis=1)
+            
+            map1 = mean_average_precision(indices, task["gt"], k=1)
+            map5 = mean_average_precision(indices, task["gt"], k=5)
 
-    # Read query images
-    images2 = read_images(dir2)
+            # 4.5. Log & Save Results
+            print(f"  MAP@1: {map1:.4f}")
+            print(f"  MAP@5: {map5:.4f}")
+            f.write(f"  MAP@1: {map1:.4f}\n")
+            f.write(f"  MAP@5: {map5:.4f}\n\n")
 
-    # Remove noise
-    non_noisy_img2 = denoise_batch(images2, thresholds=best_noise_params)
-    plot_image_comparison(images2, non_noisy_img2, 5) # plot 5 comparison images
+            # Save top k results
+            # results = indices[:, :k_results].astype(int).tolist()
+            # results_path = outputs_dir / f"results_{task['name']}.pkl" 
+            # write_pickle(results, results_path)
+            # print(f"  Saved top {k_results} results to {results_path}")
 
-    # Detect BG from images
-    masks = apply_segmentation(images2, segm_params, save_plot=True)
-
-    # Crop paintings
-    paintings = crop_images(images2, masks) #TODO: do we do this this week?
-
-    # Compute query images descriptors
-    descriptors = compute_DCT_descriptors(paintings,n_crops=n_crops,n_coefs=n_coefs, method=method,  save_pkl=False) 
-
-    # Compute similarities
-    similarities = compute_similarities(descriptors, bbdd_descriptors, desc_params["metric"])
-
-    # Sort the indices resulting from the similarities sorting
-    indices = np.argsort(similarities, axis=1)
-
-    # Save results for k
-    results = indices[:, :k].astype(int).tolist()
-    write_pickle(results, outputs_dir / NAME) #TODO: Check 
+    print(f"\n--- Pipeline Finished. Full log saved to {output_log_file} ---")
 
     # TODO: Handle submission of results in correct format
 

@@ -302,3 +302,36 @@ def remove_background_morphological_gradient(im, thr=20, pixel_border=15, gradie
 
     
     return im, poly_mask, output_image, grad_norm
+
+
+
+####################################################
+# FUNCTION ADDED FROM OUR IMPLEMENTATION FROM WEEK 2
+####################################################
+
+def crop_images(images: list[np.ndarray], masks: list[np.ndarray]) -> list[np.ndarray]:
+    """
+    Crop images using the provided masks.
+    Arguments:
+        images: List of input images (H, W, 3)
+        masks: List of binary masks (H, W) where True indicates foreground
+    Returns:
+        List of cropped images (H', W', 3)
+    """
+
+    cropped_images = []
+    for img, mask in zip(images, masks):
+        # Encuentra los límites del área blanca
+        ys, xs = np.where(mask > 0)
+        if len(xs) == 0 or len(ys) == 0:
+            cropped_images.append(None)
+            continue
+
+        x_min, x_max = xs.min(), xs.max()
+        y_min, y_max = ys.min(), ys.max()
+
+        # Recorta la imagen usando los límites
+        cropped = img[y_min:y_max+1, x_min:x_max+1]
+        cropped_images.append(cropped)
+    return cropped_images
+
