@@ -1,8 +1,11 @@
+"""
+The following functions are from the implementation by Team 2 (Week 2).
+https://github.com/MCV-2025-C1-Project/Team2/blob/main/Week2/background_remover.py
+"""
+
 # Import necessary libraries
 import numpy as np
-import matplotlib.pyplot as plt
-from scipy.ndimage import binary_opening, median_filter, morphological_gradient
-from scipy import ndimage
+from scipy.ndimage import binary_opening, morphological_gradient
 import cv2
 
 
@@ -11,7 +14,6 @@ def convert_to_representation(image):
     im_lab = cv2.cvtColor((image * 255).astype(np.uint8), cv2.COLOR_RGB2LAB)
     L, a, b = cv2.split(im_lab)
     return L.astype(float), a.astype(float), b.astype(float)
-
 
 
 def compute_edge_mask(im_lab, gradient_threshold=0.15):
@@ -34,7 +36,6 @@ def compute_edge_mask(im_lab, gradient_threshold=0.15):
     mask = binary_opening(grad_bin, structure=np.ones((3, 3)))
 
     return mask, grad_combined
-
 
 
 def create_border_suppressed_mask(mask_bool, pixel_border, h, w):
@@ -232,10 +233,6 @@ def normalize_gradient(grad):
     grad_max = grad_float.max()
     grad_norm = 255 * (grad_float - grad_min) / ((grad_max - grad_min) + 1e-8)
     return grad_norm.astype(np.uint8)
-
-
-
-
 
 
 def remove_background_morphological_gradient(im, thr=20, pixel_border=15, gradient_threshold=0.15):

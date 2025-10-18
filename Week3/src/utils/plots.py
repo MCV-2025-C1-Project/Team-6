@@ -171,3 +171,72 @@ def plot_descriptors_difference(query_descriptors: List[np.ndarray],
         print(f"Plot saved to {save_path}")
     else:
         plt.show()
+
+
+def show_split_debug(
+    image: np.ndarray,
+    parts: List[np.ndarray],
+    masks: List[np.ndarray],
+    mask_final: np.ndarray
+) -> None:
+    """
+    Displays a debug visualization of the image split results.
+
+    This function creates a matplotlib plot showing:
+      - The original image (with a vertical red cut line if split).
+      - Part 1 overlaid with its mask.
+      - Part 2 overlaid with its mask (if a 2-part split occurred).
+      - The final reconstructed mask.
+
+    The plot is displayed interactively using plt.show().
+
+    Args:
+        image: The original, full input image.
+        parts: A list of image parts (e.g., [left_img, right_img] if
+            split, or [original_img] if not).
+        masks: A list of masks, one corresponding to each part in `parts`.
+        mask_final: The final, full-size mask reconstructed from the
+            individual part masks.
+    """
+    # Find the cut location (it's the width of the left part)
+    cut_x = parts[0].shape[1] if len(parts) == 2 else None
+
+    ncols = 4 if len(parts) == 2 else 2
+    fig, axes = plt.subplots(1, ncols, figsize=(4 * ncols, 4))
+    
+    # Ensure axes is always an array, even if ncols=1 (though it's 2 or 4 here)
+    if not isinstance(axes, (np.ndarray, list)):
+        axes = [axes]
+
+    # Original (with cut line if applicable) ---
+    axes[0].imshow(image)
+    axes[0].set_title("Original")
+    if cut_x is not None:
+        axes[0].axvline(cut_x, linewidth=2, color='r')
+    axes[0].axis("off")
+
+    # Part 1 + mask ---
+    axes[1].imshow(parts[0])
+    axes[1].imshow(masks[0], alpha=0.4) # Overlay mask with transparency
+    axes[1].set_title("Part 1 + mask")
+    axes[1].axis("off")
+
+    if len(parts) == 2:
+        # Part 2 + mask ---
+        axes[2].imshow(parts[1])
+        axes[2].imshow(masks[1], alpha=0.4)
+        axes[2].set_title("Part 2 + mask")
+        axes[2].axis("off")
+
+        # Reconstructed mask ---
+        axes[3].imshow(mask_final, cmap="gray")
+        axes[3].set_title("Reconstructed mask")
+        axes[3].axis("off")
+    else:
+        # Final mask (when no split occurred) ---
+        axes[1].imshow(mask_final, cmap="gray")
+        axes[1].set_title("Final mask")
+        axes[1].axis("off")
+
+    plt.tight_layout()
+    plt.show() # Display the plot

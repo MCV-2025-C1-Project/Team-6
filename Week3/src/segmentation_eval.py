@@ -3,14 +3,22 @@ from typing import List
 
 def _to_bool_mask(x: np.ndarray) -> np.ndarray:
     """
-    Normaliza la máscara a booleana 2D.
-    - Si es HxWx3 (RGB) o HxWxC: reduce por canal con 'any' (cualquier valor>0 cuenta como 1)
-    - Si es HxW: pasa a bool
+    Normalizes an input mask into a 2D boolean (dtype=bool) array.
+
+    - If the mask is 3D (e.g., HxWxC or HxWx3 RGB), it is reduced
+      along the last (channel) axis using a logical 'any'. Any pixel
+      with a non-zero value in any channel becomes True.
+    - If the mask is 2D (HxW), it is simply converted to boolean type.
+    - Other dimensions (e.g., 1D or 4D+) will raise a ValueError.
     """
     if x.ndim == 3:
+        # Reduce 3D array (HxWxC) to 2D (HxW)
         x = x.any(axis=-1)
     elif x.ndim != 2:
+        # Only 2D or 3D inputs are supported
         raise ValueError(f"Unsupported mask shape {x.shape}")
+    
+    # Cast the final 2D array to boolean (True/False)
     return x.astype(bool)
 
 def precision(prediction: np.ndarray, ground_truth: np.ndarray) -> float:
@@ -32,7 +40,8 @@ def f1_score(prediction: np.ndarray, ground_truth: np.ndarray) -> float:
     rec = recall(prediction, ground_truth)
     return 0.0 if (prec + rec) == 0 else 2 * (prec * rec) / (prec + rec)
 
-# El resto (means y evaluation) puede quedarse igual
+
+# This part of the code can stay the same as Week 2
 
 
 def mean_precision(predictions: List[np.ndarray], ground_truths: List[np.ndarray]) -> float:
