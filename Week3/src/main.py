@@ -12,7 +12,7 @@ from image_split import split_image
 from evaluations.metrics import mean_average_precision
 from evaluations.similarity_measures import compute_similarities
 from filter_noise import denoise_batch
-from utils.io_utils import read_images, read_pickle
+from utils.io_utils import read_images, read_pickle, write_pickle
 from utils.plots import plot_query_results
 from params import best_desc_params_dct, best_noise_params
 
@@ -28,24 +28,27 @@ def remove_background(images: list[np.ndarray]):
     Returns a list of boolean masks.
     """
     predictions = []
+    splited_images = []
+    painting_counts = []
     
     # Remove background of images
     for i, image in enumerate(images):
-        parts = split_image(image) 
-        masks = []
+        parts = split_image(image)
+        # masks = []
+
+        if len(parts) == 2:
+            painting_counts.append(2)
+        else:
+            painting_counts.append(1)
+        
         for part in parts:
             _, pred_mask, _, _ = remove_background_morphological_gradient(part)
-            masks.append(pred_mask.astype(bool))
+            splited_images.append(part)
+            predictions.append(pred_mask.astype(bool))
 
-        # Combine results of all components
-        if len(masks) == 1:
-            mask_final = masks[0] 
-        else:   
-            mask_final = np.concatenate(masks, axis=1) 
+        # predictions.append(masks) 
 
-        predictions.append(mask_final)
-
-    return predictions
+    return splited_images, predictions, painting_counts # For each image, a mask
 
 
 def process_images(images: list[np.ndarray], denoise: bool = False, background: bool = False):
@@ -60,22 +63,21 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
         print("- Denoising images -")
         print("Noise removal parameters: ", BEST_THRESHOLDS)
         processed_images = denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
-        # plot_image_comparison(images1, non_noisy_img1, 5) # plot 5 comparison images
     else:
         print("No denoising of images")
 
     if background:
         print("- Background removal -")
-        masks = remove_background(processed_images)
-        processed_images = crop_images(processed_images, masks)
+        splited_images, masks, painting_counts = remove_background(processed_images)
+        processed_images = crop_images(splited_images, masks)
+
+        return processed_images, painting_counts
     else:
         print("No background removal")
-
-    return processed_images
+        return processed_images, [1] * len(processed_images)
     
 
-
-def main(dir1: Path, dir2: Path, k: int = 5) -> None:
+def main(dir1: Path, dir2: Path, k_results: int = 5, ) -> None:
 
     # Create outputs dir where pkl files will be saved
     outputs_dir = SCRIPT_DIR / "outputs" 
@@ -144,7 +146,7 @@ def main(dir1: Path, dir2: Path, k: int = 5) -> None:
             f.write(f"--- Task: {task['name']} ---\n")
 
             # Process Images 
-            processed_images = process_images(task["images"], denoise=task["denoise"], background=task["background"])
+            processed_images, painting_counts = process_images(task["images"], denoise=task["denoise"], background=task["background"]) 
 
             # Compute Query Descriptors
             print(f"Computing descriptors for {task['name']}...")
@@ -166,19 +168,32 @@ def main(dir1: Path, dir2: Path, k: int = 5) -> None:
             f.write(f"  MAP@1: {map1:.4f}\n")
             f.write(f"  MAP@5: {map5:.4f}\n\n")
 
-            plot_query_results(task['images'], indices[:, :k], sorted_sims[:, :k], k=k, 
-                                    save_path=Path(__file__).resolve().parent / 'outputs' / f'query_at{k}_{task['name']}.png')
+            plot_query_results(processed_images, indices[:, :5], sorted_sims[:, :5], k=5,  
+                                    save_path=Path(__file__).resolve().parent / 'outputs' / f'query_at{5}_{task["name"]}.png')
 
+            
+            # # THIS PART OF THE CODE WILL BE USEFUL JUST FOR THE TEST SETS
+            # results = []
+            # painting_counter = 0
+            # for i in range(len(task["images"])):
+            #     num_paintings_in_query = painting_counts[i]
+            #     image_indices = indices[painting_counter : painting_counter + num_paintings_in_query]
 
-            # Save top k results
-            # results = indices[:, :k_results].astype(int).tolist()
+            #     if num_paintings_in_query == 1:
+            #         results.append(image_indices[:, :k_results].tolist())
+            #     else:
+            #         # Append a list of lists
+            #         results.append(image_indices[:, :k_results].tolist())
+                
+            #     painting_counter += num_paintings_in_query
+                
+
             # results_path = outputs_dir / f"results_{task['name']}.pkl" 
             # write_pickle(results, results_path)
             # print(f"  Saved top {k_results} results to {results_path}")
 
     print(f"\n--- Pipeline Finished. Full log saved to {output_log_file} ---")
 
-    # TODO: Handle submission of results in correct format
 
 
 if __name__ == "__main__":
