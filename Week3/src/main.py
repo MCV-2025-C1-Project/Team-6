@@ -77,7 +77,7 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
         return processed_images, [1] * len(processed_images)
     
 
-def main(dir1: Path, dir2: Path, k_results: int = 5, ) -> None:
+def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
 
     # Create outputs dir where pkl files will be saved
     outputs_dir = SCRIPT_DIR / "outputs" 
@@ -153,14 +153,17 @@ def main(dir1: Path, dir2: Path, k_results: int = 5, ) -> None:
             query_descriptors = compute_DCT_descriptors(processed_images, n_crops=n_crops, n_coefs=n_coefs, method=method)
 
             # Compute Similarities
-            similarities = compute_similarities(query_descriptors, bbdd_descriptors, metric="euclidean") # Euclidean (?) TEMPORAL
+            similarities = compute_similarities(query_descriptors, bbdd_descriptors, metric="euclidean")
 
             # Evaluate
             indices = np.argsort(similarities, axis=1)
             sorted_sims = np.take_along_axis(similarities, indices, axis=1)
 
-            map1 = mean_average_precision(indices, task["gt"], k=1)
-            map5 = mean_average_precision(indices, task["gt"], k=5)
+            # In case of two paintings in one image
+            gt = [[item] for sublist in task["gt"] for item in sublist]
+
+            map1 = mean_average_precision(indices, gt, k=1)
+            map5 = mean_average_precision(indices, gt, k=5)
 
             # 4.5. Log & Save Results
             print(f"  MAP@1: {map1:.4f}")
