@@ -2,7 +2,6 @@
 For development set qsd1_w3
 """
 
-import cv2
 import argparse
 import numpy as np
 from pathlib import Path
@@ -12,8 +11,9 @@ from background_remover import remove_background_morphological_gradient, crop_im
 from image_split import split_image
 from evaluations.metrics import mean_average_precision
 from evaluations.similarity_measures import compute_similarities
-from filter_noise import denoise_batch, plot_image_comparison
-from utils.io_utils import read_images, read_pickle, write_pickle
+from filter_noise import denoise_batch
+from utils.io_utils import read_images, read_pickle
+from utils.plots import plot_query_results
 from params import best_desc_params_dct, best_noise_params
 
 
@@ -75,14 +75,14 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
     
 
 
-def main(dir1: Path, dir2: Path, k: int = 10) -> None:
+def main(dir1: Path, dir2: Path, k: int = 5) -> None:
 
     # Create outputs dir where pkl files will be saved
     outputs_dir = SCRIPT_DIR / "outputs" 
     outputs_dir.mkdir(exist_ok=True)
 
     # Central output file for this run
-    output_log_file = outputs_dir / "tasca4_evaluation_log.txt"
+    output_log_file = outputs_dir / "descriptors_evaluation_log.txt"
 
     print("- Applying BBDD descriptors -")
     print("Descriptor parameters:", BEST_DESC)
@@ -131,7 +131,7 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
             "gt": read_pickle(dir2 / "gt_corresps.pkl")
         }
     ]
-    
+
     print("\n--- Starting Pipeline ---")
     with open(output_log_file, 'w') as f:
         f.write("Evaluation Results\n")
@@ -155,7 +155,8 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
 
             # Evaluate
             indices = np.argsort(similarities, axis=1)
-            
+            sorted_sims = np.take_along_axis(similarities, indices, axis=1)
+
             map1 = mean_average_precision(indices, task["gt"], k=1)
             map5 = mean_average_precision(indices, task["gt"], k=5)
 
@@ -164,6 +165,10 @@ def main(dir1: Path, dir2: Path, k: int = 10) -> None:
             print(f"  MAP@5: {map5:.4f}")
             f.write(f"  MAP@1: {map1:.4f}\n")
             f.write(f"  MAP@5: {map5:.4f}\n\n")
+
+            plot_query_results(task['images'], indices[:, :k], sorted_sims[:, :k], k=k, 
+                                    save_path=Path(__file__).resolve().parent / 'outputs' / f'query_at{k}_{task['name']}.png')
+
 
             # Save top k results
             # results = indices[:, :k_results].astype(int).tolist()
