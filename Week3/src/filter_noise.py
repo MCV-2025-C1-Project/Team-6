@@ -5,7 +5,6 @@ Main can execute the grid search or the evaluation of the development set.
 
 import argparse
 from tqdm import tqdm
-from typing import List
 from itertools import product
 from pathlib import Path
 
@@ -18,6 +17,7 @@ from skimage.metrics import structural_similarity as ssim
 from params import noise_search_space, base_thresholds, best_noise_params
 from utils.io_utils import read_images
 from utils.color_spaces import rgb_to_ycrcb
+from utils.plots import plot_all_comparisons
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 BASE_THRESHOLDS = base_thresholds
@@ -43,34 +43,6 @@ def _to_gray_u8(img: np.ndarray) -> np.ndarray:
     else:
         gray_u8 = gray
     return gray_u8
-
-
-def _vis_compat(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Make two images stackable: same size, 3 channels, same dtype."""
-    if b.shape[:2] != a.shape[:2]:
-        b = cv2.resize(b, (a.shape[1], a.shape[0]), interpolation=cv2.INTER_NEAREST)
-
-    if a.ndim == 2:
-        a = cv2.cvtColor(a, cv2.COLOR_GRAY2RGB)
-    if b.ndim == 2:
-        b = cv2.cvtColor(b, cv2.COLOR_GRAY2RGB)
-
-    if a.dtype != b.dtype:
-        b = b.astype(a.dtype)
-    return a, b
-
-
-def plot_image_comparison(den_images: List[np.ndarray], og_images: List[np.ndarray], max_imgs: int=None) -> None:
-    for i, (denoised, original) in enumerate(zip(den_images, og_images)):
-        if max_imgs is not None and i >= max_imgs:
-            break
-        img_vis, den_vis = _vis_compat(original, denoised)
-        final = np.hstack([img_vis, den_vis])
-    
-        cv2.imshow('Original vs denoised image', final)
-        cv2.waitKey(0)
-
-    cv2.destroyAllWindows()
 
 
 #######################################################
@@ -729,12 +701,30 @@ if __name__=="__main__":
             f.write(f"Best mean score: {best_score:.4f}\n")
     else:
         # Denoise images
-        den_images = denoise_batch(og_images, thresholds=BEST_THRESHOLDS)
+        denoised = denoise_batch(og_images, thresholds=BEST_THRESHOLDS)
 
         # Compute score of best implementation
-        scores, mean_score = eval_batch(og_images, den_images, gt_images)
+        scores, mean_score = eval_batch(og_images, denoised, gt_images)
 
         print(f"Mean score: {mean_score:.4f}")
 
-        # Plot results
-        plot_image_comparison(den_images, og_images, 10)
+        scores_path = SCRIPT_DIR / "outputs" / "denoising_scores.txt"
+        with open(scores_path, "w") as f:
+            f.write(f"Mean Score: {mean_score:.4f}\n")
+            f.write("-" * 30 + "\n")
+            f.write("Individual Image Scores:\n")
+            for i, score in enumerate(scores):
+                f.write(f"  Image {i}: {score:.4f}\n")
+        print(f"Scores saved to {scores_path}")
+
+        plot_path = SCRIPT_DIR / "outputs" / "denoising_comparison.png"
+        plot_all_comparisons(
+            og_images, 
+            denoised, 
+            gt_images, 
+            scores, 
+            save_path=plot_path
+        )
+
+        # # Plot results
+        # plot_image_comparison(den_images, og_images, 10)

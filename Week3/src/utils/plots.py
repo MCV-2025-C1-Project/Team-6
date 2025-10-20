@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional, List
 import numpy as np
+import cv2
 
 import matplotlib
 matplotlib.use('TkAgg')  # Use TkAgg backend for better compatibility
@@ -240,3 +241,101 @@ def show_split_debug(
 
     plt.tight_layout()
     plt.show() # Display the plot
+
+
+
+def _vis_compat(a: np.ndarray, b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Make two images stackable: same size, 3 channels, same dtype."""
+    if b.shape[:2] != a.shape[:2]:
+        b = cv2.resize(b, (a.shape[1], a.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+    if a.ndim == 2:
+        a = cv2.cvtColor(a, cv2.COLOR_GRAY2RGB)
+    if b.ndim == 2:
+        b = cv2.cvtColor(b, cv2.COLOR_GRAY2RGB)
+
+    if a.dtype != b.dtype:
+        b = b.astype(a.dtype)
+    return a, b
+
+
+def plot_image_comparison(den_images: List[np.ndarray], og_images: List[np.ndarray], max_imgs: int=None) -> None:
+    for i, (denoised, original) in enumerate(zip(den_images, og_images)):
+        if max_imgs is not None and i >= max_imgs:
+            break
+        img_vis, den_vis = _vis_compat(original, denoised)
+        final = np.hstack([img_vis, den_vis])
+    
+        cv2.imshow('Original vs denoised image', final)
+        cv2.waitKey(0)
+
+    cv2.destroyAllWindows()
+
+
+def plot_all_comparisons(
+    og_images: List[np.ndarray], 
+    den_images: List[np.ndarray], 
+    gt_images: List[np.ndarray], 
+    scores: List[float], 
+    save_path: Optional[Path] = None
+) -> None:
+    """
+    Plots all original, denoised, and ground truth images in a single grid
+    and saves it to a file.
+    
+    Args:
+        og_images: List of original noisy images.
+        den_images: List of denoised images.
+        gt_images: List of ground truth images.
+        scores: List of scores corresponding to each image.
+        save_path: Path to save the combined plot.
+    """
+    n_images = len(og_images)
+    if n_images == 0:
+        print("No images to plot.")
+        return
+
+    # Create a grid of N rows and 3 columns
+    fig, axes = plt.subplots(n_images, 3, figsize=(15, 5 * n_images))
+    
+    # Handle case of n_images = 1, where axes is 1D
+    if n_images == 1:
+        axes = np.array([axes]) # Reshape to (1, 3)
+        
+    for i in range(n_images):
+        # Get images and score
+        og, den, gt = og_images[i], den_images[i], gt_images[i]
+        score = scores[i]
+        
+        # Make images compatible for visualization
+        # og_viz will be the reference
+        og_viz, den_viz = _vis_compat(og, den)
+        og_viz, gt_viz = _vis_compat(og_viz, gt) # gt_viz resized to og_viz
+
+        # Plot Original
+        ax_og = axes[i, 0]
+        ax_og.imshow(og_viz)
+        ax_og.set_title(f"Image {i}: Original (Noisy)")
+        ax_og.axis('off')
+        
+        # Plot Denoised
+        ax_den = axes[i, 1]
+        ax_den.imshow(den_viz)
+        ax_den.set_title(f"Denoised (Score: {score:.4f})")
+        ax_den.axis('off')
+
+        # Plot Ground Truth
+        ax_gt = axes[i, 2]
+        ax_gt.imshow(gt_viz)
+        ax_gt.set_title(f"Image {i}: Ground Truth")
+        ax_gt.axis('off')
+    
+    plt.tight_layout(pad=2.0)
+    
+    if save_path:
+        plt.savefig(save_path, dpi=100, bbox_inches='tight', facecolor='white')
+        print(f"Comparison plot saved to {save_path}")
+    else:
+        plt.show() # Fallback to showing the plot if no path is given
+    
+    plt.close(fig) # Free up memory
