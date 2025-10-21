@@ -75,9 +75,8 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
         processed_images = crop_images(splited_images, masks)
         tmp = []
         for processed_img in processed_images:
-            tmp.append(shadow_removal(processed_img,45))
+            tmp.append(shadow_removal(processed_img,25))
         
-        processed_images = tmp
         return processed_images, painting_counts
     else:
         print("No background removal")
@@ -109,29 +108,10 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
         bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
         bbdd_descriptors = compute_DCT_descriptors(bbdd_images, n_crops=n_crops, n_coefs=n_coefs, method=method, save_pkl=True) # Add correct path
     
-    # Group tasks by dataset for clarity
+
     tasks = [
-        {
-            "name": "QSD1_NoDenoise_NoBG",
-            "images": read_images(dir1),
-            "denoise": False,
-            "background": False,
-            "gt": read_pickle(dir1 / "gt_corresps.pkl")
-        },
-        {
-            "name": "QSD1_Denoised_NoBG",
-            "images": read_images(dir1), # Read again to get a fresh copy
-            "denoise": True,
-            "background": False,
-            "gt": read_pickle(dir1 / "gt_corresps.pkl")
-        },
-        {
-            "name": "QSD2_NoDenoise_BGRemoved",
-            "images": read_images(dir2), 
-            "denoise": False,
-            "background": True,
-            "gt": read_pickle(dir2 / "gt_corresps.pkl")
-        },
+        
+        
         {
             "name": "QSD2_Denoised_BGRemoved",
             "images": read_images(dir2), # Read again to get a fresh copy
@@ -155,6 +135,7 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
             # Process Images 
             processed_images, painting_counts = process_images(task["images"], denoise=task["denoise"], background=task["background"]) 
 
+            processed_images
 
             # Compute Query Descriptors
             print(f"Computing descriptors for {task['name']}...")

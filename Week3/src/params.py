@@ -29,16 +29,16 @@ noise_search_space = {
 
 # Parameters for DCT Grid Search
 dct_search_space = {
-    "method": ["dct-rgb","dct-xyz"],
-    "n_crops": [4],
-    "n_coefs": [80,90,100,110,120]
+    "method": ["dct-rgbg"],
+    "n_crops": [1,2],
+    "n_coefs": [150,160,165,170,175,180]
 }
 
 # Best parameters for descriptor DCT
 best_desc_params_dct = {
     "method": "dct-rgb",
-    "n_crops": 4,
-    "n_coefs": 80
+    "n_crops": 1,
+    "n_coefs": 150
 }
 
 # NOTHING TO ADD BECAUSE OF ITS IRRELEVANCE

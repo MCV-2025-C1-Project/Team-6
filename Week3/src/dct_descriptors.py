@@ -1,4 +1,5 @@
 import os
+
 import cv2
 import numpy as np
 import argparse
@@ -11,12 +12,97 @@ from evaluations.similarity_measures import compute_similarities
 from utils.color_spaces import rgb_to_hsv
 from utils.io_utils import write_pickle, read_images
 from params import best_desc_params_dct, dct_search_space
+from Week3.src.shadow_removal import shadow_removal
+
+from background_remover import remove_background_morphological_gradient, crop_images
+from image_split import split_image
+from evaluations.metrics import mean_average_precision
+from evaluations.similarity_measures import compute_similarities
+from filter_noise import denoise_batch
+from utils.io_utils import read_images, read_pickle, write_pickle
+from utils.plots import plot_query_results
+from params import best_desc_params_dct, best_noise_params
 
 # TODO: explained in compute_dct_descriptors
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 BEST_PARAMS = best_desc_params_dct
 SEARCH_SPACE = dct_search_space
+BEST_THRESHOLDS = best_noise_params
+BEST_DESC = best_desc_params_dct
+
+def remove_background(images: list[np.ndarray]):
+    """
+    Removes the background from a list of images.
+    Returns a list of boolean masks.
+    """
+    predictions = []
+    splited_images = []
+    painting_counts = []
+    
+    # Remove background of images
+    for i, image in enumerate(images):
+        parts = split_image(image)
+        # masks = []
+
+        if len(parts) == 2:
+            painting_counts.append(2)
+        else:
+            painting_counts.append(1)
+        
+        for part in parts:
+            _, pred_mask, _, _ = remove_background_morphological_gradient(part)
+            splited_images.append(part)
+            predictions.append(pred_mask.astype(bool))
+
+    # predictions.append(masks) 
+    
+
+    return splited_images, predictions, painting_counts # For each image, a mask
+
+def create_rgb_grayscale(bgr_img):
+    """
+    Takes a 3-channel BGR image and returns a 4-channel
+    image with (R, G, B, Grayscale) channels.
+    """
+    # 1. Get the R, G, B channels
+    # The input 'crop' is BGR, so split gives (b, g, r)
+    b, g, r = cv2.split(bgr_img)
+    
+    # 2. Get the Grayscale channel
+    gray = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
+    
+    # 3. Merge them in the order R, G, B, Grayscale
+    return cv2.merge((r, g, b, gray))
+
+def process_images(images: list[np.ndarray], denoise: bool = False, background: bool = False):
+    """
+    Applies denoising and/or background removal to a list of images.
+    """
+
+    # Copy to avoid unintended side effects
+    processed_images = [img.copy() for img in images]
+    
+    if denoise:
+        print("- Denoising images -")
+        print("Noise removal parameters: ", BEST_THRESHOLDS)
+        processed_images = denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
+    else:
+        print("No denoising of images")
+
+    if background:
+        print("- Background removal -")
+        splited_images, masks, painting_counts = remove_background(processed_images)
+        processed_images = crop_images(splited_images, masks)
+        tmp = []
+        for processed_img in processed_images:
+            tmp.append(shadow_removal(processed_img,45))
+        
+        return tmp, painting_counts
+    else:
+        print("No background removal")
+        return processed_images, [1] * len(processed_images)
+    
 
 def _spatial_crop(img: np.ndarray, n_crops: int = 3) -> List[np.ndarray]:
     """
@@ -141,6 +227,10 @@ def compute_DCT_descriptors(
         # Convert each crop to XYZ color space
         cropped_imgs = [[cv2.cvtColor(crop, cv2.COLOR_BGR2XYZ) for crop in cropped_img] for cropped_img in cropped_imgs]
         initial_descs = [[np.concatenate([_dct(crop[:,:,i], keep_coef=n_coefs) for i in range(3)], axis=0) for crop in cropped_img] for cropped_img in cropped_imgs]
+    elif method == "dct-rgbg":
+        # Convert each crop to XYZ color space
+        cropped_imgs = [[create_rgb_grayscale(crop) for crop in cropped_img] for cropped_img in cropped_imgs]
+        initial_descs = [[np.concatenate([_dct(crop[:,:,i], keep_coef=n_coefs) for i in range(4)], axis=0) for crop in cropped_img] for cropped_img in cropped_imgs]
     else:
         raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
 
@@ -171,7 +261,7 @@ if __name__=="__main__":
     parser.add_argument(
         '-dir', '--data-dir',
         type=Path,
-        default=SCRIPT_DIR.parent / "qsd1_w3",
+        default=SCRIPT_DIR.parent / "qsd2_w3",
         help='Path to a directory of images with noise.'
     )
     parser.add_argument(
@@ -205,23 +295,23 @@ if __name__=="__main__":
         print("Init of Grid Search...")
         query_imgs = read_images(dir)
         gt = read_pickle(dir / "gt_corresps.pkl")
-
+        processed_images, painting_counts = process_images(query_imgs, denoise=True, background=True) 
         for n_crop in SEARCH_SPACE['n_crops']:
             for coef in SEARCH_SPACE['n_coefs']:
                 for method in SEARCH_SPACE['method']:
                     data_descriptor = compute_DCT_descriptors(bbdd_imgs,n_crops=n_crop,n_coefs=coef, method=method, save_pkl=False)
-                    query_descriptor = compute_DCT_descriptors(query_imgs, n_crops=n_crop,n_coefs=coef, method=method, save_pkl=False)
-
+                    query_descriptor = compute_DCT_descriptors(processed_images, n_crops=n_crop,n_coefs=coef, method=method, save_pkl=False)
+                    
                     similarities = compute_similarities(query_descriptor, data_descriptor, metric="euclidean")
                         
                     # Sort the similarities and obtain their indices
                     indices = np.argsort(similarities, axis=1)
                     sorted_sims = np.take_along_axis(similarities, indices, axis=1)
-
+                    gtt = [[item] for sublist in gt for item in sublist]    
                     # Extract the best k results
                     results_indices = indices[:, :5]
                     results_similarities = sorted_sims[:, :5]
-                    map_score = mean_average_precision(indices, gt, k=5)
+                    map_score = mean_average_precision(indices, gtt, k=5)
 
                     # Print and save scores por MAP@5
                     print(f"MAP@{5} score: {map_score:.4f}, using {n_crop} crops, {coef} coefficients.")
@@ -229,8 +319,10 @@ if __name__=="__main__":
                         f.write(f"MAP@{5} score: {map_score:.4f}, using {method}, {n_crop} crops, {coef} coefficient.\n")
                     
                     results_indices = indices[:, :1]
-                    results_similarities = sorted_sims[:, :1]        
-                    map_score = mean_average_precision(indices, gt, k=1)
+                    results_similarities = sorted_sims[:, :1]  
+                    # In case of two paintings in one image
+                      
+                    map_score = mean_average_precision(indices, gtt, k=1)
 
                     # Print and save scores por MAP@1
                     print(f"MAP@{1} score: {map_score:.4f}, using {n_crop} crops, {coef} coefficients.")
