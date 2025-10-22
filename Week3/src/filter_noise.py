@@ -24,9 +24,6 @@ BASE_THRESHOLDS = base_thresholds
 BEST_THRESHOLDS = best_noise_params  
 SEARCH_SPACE = noise_search_space 
 
-# TODO: Change the plot in order to save it as a full .png with all the images and
-# the scores for each denoising. Save it in the dir outputs
-
 
 #########################################
 ################ Helpers ################
@@ -202,7 +199,6 @@ def salt_and_pepper_ratio(
     Returns:
         Fraction of pixels behaving like isolated impulses.
     """
-
     # odd window
     if win % 2 == 0 or win < 3:
         raise ValueError("win must be odd and >= 3")
@@ -243,6 +239,61 @@ def salt_and_pepper_ratio(
     sp_local = impulses.mean()
 
     return float(max(tails, sp_local))
+
+def salt_and_pepper_ratio_rgb(
+    rgb_u8: np.ndarray,
+    win: int = 3,
+    delta_abs: int = 8,      
+    k_mad: float = 2.0,      
+    flat_pct: float = 80.0, 
+    iso_max: int = 2,        
+    border: int = 4
+) -> float:
+    """
+    Fraction of pixels behaving like isolated local outliers in ANY color channel.
+    Robust to colored S&P dots.
+    """
+    assert rgb_u8.ndim == 3 and rgb_u8.shape[2] >= 3, "expects RGB uint8"
+    if rgb_u8.dtype != np.uint8:
+        g = cv2.normalize(rgb_u8, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    else:
+        g = rgb_u8
+
+    if border > 0 and min(g.shape[:2]) > 2*border:
+        g = g[border:-border, border:-border, :]
+
+    H, W, _ = g.shape
+    impulses_any = np.zeros((H, W), dtype=bool)
+
+    # Edge/flatness mask computed on luminance
+    Y = cv2.cvtColor(g, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    gx = cv2.Sobel(Y, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(Y, cv2.CV_32F, 0, 1, ksize=3)
+    mag = cv2.magnitude(gx, gy)
+    m_th = np.percentile(mag, flat_pct)
+    flat = (mag <= m_th)
+
+    # Process each channel separately
+    for c in range(3):
+        ch = g[..., c]
+        med = cv2.medianBlur(ch, win)
+        diff = (ch.astype(np.int16) - med.astype(np.int16))
+        adiff = np.abs(diff)
+
+        # local MAD of |ch - med|
+        mad = cv2.medianBlur(adiff.astype(np.uint8), win).astype(np.float32)
+
+        # threshold
+        thr = np.maximum(delta_abs, k_mad * (mad + 1.0))
+        cand = (adiff.astype(np.float32) >= thr) & flat
+
+        # isolation: at most iso_max flagged in 3x3
+        nbr = cv2.boxFilter(cand.astype(np.uint8), -1, (3, 3), normalize=False)
+        imp = cand & (nbr <= iso_max)
+
+        impulses_any |= imp
+
+    return float(impulses_any.mean())
 
 
 def jpeg_blockiness(u8_gray_image: np.ndarray) -> float:
@@ -309,7 +360,8 @@ def flat_region_sigma(gray_u8: np.ndarray, flat_pct: float = 15.0, var_win: int 
     Returns:
         Estimated sigma of Gaussian-like noise in [0,1] intensity units.
     """
-    g = gray_u8.astype(np.float32)
+    g0 = cv2.medianBlur(gray_u8, 3)
+    g = g0.astype(np.float32)
 
     # Local variance (texture detector) via box filters
     mu  = cv2.boxFilter(g, -1, (var_win, var_win))
@@ -397,13 +449,18 @@ def measure_noise_metrics(img: np.ndarray) -> dict:
     # Convert to grayscale u8 for metrics that need it
     gray_u8 = _to_gray_u8(img)
 
+    if img.ndim == 3 and img.shape[2] >= 3:
+        sp = salt_and_pepper_ratio_rgb(img)  
+        chrn = chroma_noise_ratio(img)
+
+    else:
+        sp = salt_and_pepper_ratio(gray_u8) 
+        chrn = None
+
     # Compute metrics
-    sp  = salt_and_pepper_ratio(gray_u8)
-    sig = flat_region_sigma(gray_u8)
+    sig = flat_region_sigma(gray_u8)         
     blk = jpeg_blockiness(gray_u8)
     vol = variance_of_laplacian(img)
-    chrn = chroma_noise_ratio(img) if (img.ndim == 3 and img.shape[2] >= 3) else None
-
     return {"sp": sp, "sig": sig, "blk": blk, "vol": vol, "chr": chrn}
 
 
@@ -422,12 +479,12 @@ def check_noise(img: np.ndarray, thresholds: dict | None = None, margin = 0.002)
     # Default thresholds
     # Normally from params.py, but this allows easy overrides
     thr = {
-        "sp_impulse": 0.015,   # ≥1.5% extreme pixels → impulses likely
-        "sig_gauss":  0.016,   # flat-region sigma in [0,1] units
-        "blk_jpeg":   1.15,    # >1.15 → visible blocking
-        "chr_chroma": 0.25,    # >0.25 → noticeable chroma speckle
-        "vol_blur":   80.0     # <80 (8-bit ~1MP) → quite blurry
-    }
+        "sp_impulse": 0.08,   
+        "sig_gauss":  0.05,  
+        "blk_jpeg":   1.15,    
+        "chr_chroma": 0.25,    
+        "vol_blur":   80.0   
+    }  
 
     if thresholds:
         thr.update(thresholds)
@@ -435,20 +492,26 @@ def check_noise(img: np.ndarray, thresholds: dict | None = None, margin = 0.002)
     m = measure_noise_metrics(img)
     labels: list[str] = []
 
+    sp_hit  = (m["sp"]  >= thr["sp_impulse"] + margin)
+    sig_hit = (m["sig"] >= thr["sig_gauss"]  + margin)
+
     # Impulse noise (salt & pepper)
-    if (m["sp"] >= thr["sp_impulse"] + margin):
+    if sp_hit:
         labels.append("impulse")
 
     # Gaussian-like / random noise
-    if m["sig"] >= thr["sig_gauss"] + margin:
+    if sig_hit and not sp_hit:
+        labels.append("gaussian_like")
+    
+    elif sig_hit and sp_hit and m["sig"] >= 2.5 * thr["sig_gauss"]:
         labels.append("gaussian_like")
 
     # JPEG blocking artifacts
-    if (m["blk"] >= thr["blk_jpeg"]) and (m["sig"] >= 0.03 or (m["chr"] or 0) >= 0.10):
+    if m["blk"] >= thr["blk_jpeg"]:
         labels.append("jpeg_blockiness")
 
     # Chroma speckle (only if color metric available)
-    if (m["chr"] is not None) and (m["chr"] >= thr["chr_chroma"] + margin):
+    if (m["chr"] is not None) and (m["chr"] >= thr["chr_chroma"]):
         labels.append("chroma_noise")
 
     if not labels:
@@ -482,9 +545,6 @@ def denoise_images(image: np.ndarray, thresholds: dict | None = None, return_lab
         if "impulse" in labels:
             out = adaptive_median_filter(out, Smax=7)
             out = median_filter(out, kernel_size=3)
-            # polish if also gaussian/jpg flagged
-            if ("gaussian_like" in labels) or ("jpeg_blockiness" in labels):
-                out = bilateral_filter(out, d=5, sigma_c=14, sigma_s=3)
         elif ("gaussian_like" in labels) or ("jpeg_blockiness" in labels):
             out = bilateral_filter(out, d=5, sigma_c=12, sigma_s=3)
         else:
@@ -499,13 +559,10 @@ def denoise_images(image: np.ndarray, thresholds: dict | None = None, return_lab
     # Apply filters based on detected noise types
     if "impulse" in labels:
         outY = adaptive_median_filter(outY, Smax=7)
+        outY = median_filter(outY, kernel_size=3)
 
-    if ("gaussian_like" in labels) or ("jpeg_blockiness" in labels):
+    elif ("gaussian_like" in labels) or ("jpeg_blockiness" in labels):
         outY = bilateral_filter(outY, d=5, sigma_c=12, sigma_s=3)
-        outY = median_filter(outY, kernel_size=3)  # remove residual dots
-        # smooth chroma a bit (impulse can show up as colored specks)
-        outCr = bilateral_filter(outCr, d=7, sigma_c=18, sigma_s=4)
-        outCb = bilateral_filter(outCb, d=7, sigma_c=18, sigma_s=4)
 
     if "chroma_noise" in labels:
         outCr = bilateral_filter(outCr, d=7, sigma_c=15, sigma_s=4)
@@ -561,20 +618,13 @@ def eval_psnr_ssim(orig: np.ndarray, den: np.ndarray, gt: np.ndarray) -> float:
 
     # Compute PSNR and SSIM
     if np.array_equal(orig, gt):
-        psnr_og = np.inf
-        ssim_og = 1.0
-    else:
-        psnr_og = psnr(gt, orig, data_range=255)
-        ssim_og = ssim(gt, orig, data_range=255)
+        return 0.0
 
-    if np.array_equal(den, gt):
-        psnr_den = np.inf
-        ssim_den = 1.0
-    else:
-        psnr_den = psnr(gt, den, data_range=255)
-        ssim_den = ssim(gt, den, data_range=255)
+    psnr_og = psnr(gt, orig, data_range=255)
+    ssim_og = ssim(gt, orig, data_range=255)
+    psnr_den = psnr(gt, den, data_range=255)
+    ssim_den = ssim(gt, den, data_range=255)
 
-    # Delta PSNR and SSIM
     d_psnr = psnr_den - psnr_og
     d_ssim = ssim_den - ssim_og
     eps_psnr, eps_ssim = 0.05, 0.001
