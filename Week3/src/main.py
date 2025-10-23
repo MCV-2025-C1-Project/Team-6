@@ -6,7 +6,7 @@ import argparse
 import numpy as np
 from pathlib import Path
 
-from Week3.src.shadow_removal import shadow_removal
+from shadow_removal import shadow_removal
 from dct_descriptors import compute_DCT_descriptors
 from background_remover import remove_background_morphological_gradient, crop_images
 from image_split import split_image
@@ -103,7 +103,13 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
     # Load/Compute bbdd descriptors
     try:
         print("Loading database descriptors...")
-        bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
+
+        bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
+        bbdd_images, painting_counts = process_images(bbdd_images, denoise=True, background=False) 
+        bbdd_descriptors = compute_DCT_descriptors(bbdd_images, n_crops=n_crops, n_coefs=n_coefs, method=method, save_pkl=True) # Add correct path
+
+        #bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
+
     except FileNotFoundError:
         print("Unable to load database descriptors. Computing them...")
         bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
