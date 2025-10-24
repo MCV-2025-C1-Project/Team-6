@@ -520,7 +520,7 @@ def check_noise(img: np.ndarray, thresholds: dict | None = None, margin = 0.002)
     return labels
 
 
-def denoise_images(image: np.ndarray, thresholds: dict | None = None, return_labels: bool = False) -> np.ndarray | tuple[np.ndarray, list[str]]:
+def denoise_images(image: np.ndarray, thresholds: dict | None = None, return_labels: bool = False, bg_filtering: bool = False) -> np.ndarray | tuple[np.ndarray, list[str]]:
     """
     Denoise a single image based on detected noise types.
     Args:
@@ -555,18 +555,24 @@ def denoise_images(image: np.ndarray, thresholds: dict | None = None, return_lab
     ycrcb = rgb_to_ycrcb(image)
     Y, Cr, Cb = cv2.split(ycrcb)
     outY, outCr, outCb = Y.copy(), Cr.copy(), Cb.copy()
-    
-    # Apply filters based on detected noise types
-    if "impulse" in labels:
-        outY = adaptive_median_filter(outY, Smax=7)
-        outY = median_filter(outY, kernel_size=3)
 
-    elif ("gaussian_like" in labels) or ("jpeg_blockiness" in labels):
+    if bg_filtering:
         outY = bilateral_filter(outY, d=5, sigma_c=12, sigma_s=3)
+        outY = median_filter(outY, kernel_size=3)  # remove residual dots
+        # smooth chroma a bit (impulse can show up as colored specks)
+        outCr = bilateral_filter(outCr, d=7, sigma_c=18, sigma_s=4)
+        outCb = bilateral_filter(outCb, d=7, sigma_c=18, sigma_s=4)
+    else:
+        # Apply filters based on detected noise types
+        if "impulse" in labels:
+            outY = adaptive_median_filter(outY, Smax=7)
+            outY = median_filter(outY, kernel_size=3)
+        elif ("gaussian_like" in labels) or ("jpeg_blockiness" in labels):
+            outY = bilateral_filter(outY, d=5, sigma_c=12, sigma_s=3)
 
-    if "chroma_noise" in labels:
-        outCr = bilateral_filter(outCr, d=7, sigma_c=15, sigma_s=4)
-        outCb = bilateral_filter(outCb, d=7, sigma_c=15, sigma_s=4)
+        if "chroma_noise" in labels:
+            outCr = bilateral_filter(outCr, d=7, sigma_c=15, sigma_s=4)
+            outCb = bilateral_filter(outCb, d=7, sigma_c=15, sigma_s=4)
 
     # Merge channels back
     out = cv2.merge([outY, outCr, outCb])
