@@ -75,6 +75,22 @@ def create_rgb_grayscale(bgr_img):
     # 3. Merge them in the order R, G, B, Grayscale
     return cv2.merge((r, g, b, gray))
 
+def create_rgb_hs(bgr_img):
+    """
+    Takes a 3-channel BGR image and returns a 4-channel
+    image with (R, G, B, Grayscale) channels.
+    """
+    # 1. Get the R, G, B channels
+    # The input 'crop' is BGR, so split gives (b, g, r)
+    b, g, r = cv2.split(bgr_img)
+    
+    # 2. Get the Grayscale channel
+    hsv = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2HSV)
+    h, s ,v = cv2.split(hsv)
+    
+    # 3. Merge them in the order R, G, B, Grayscale
+    return cv2.merge((r, g, b, h,s))
+
 def process_images(images: list[np.ndarray], denoise: bool = False, background: bool = False,threshold: int = 14):
     """
     Applies denoising and/or background removal to a list of images.
@@ -212,6 +228,10 @@ def compute_DCT_descriptors(
             imgs = [cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) for img in imgs]
         cropped_imgs = [_spatial_crop(im, n_crops) for im in imgs]
         initial_descs = [[_dct(crop, keep_coef=n_coefs) for crop in cropped_img] for cropped_img in cropped_imgs]
+    elif method == "dct-hs":
+        # Convert each crop to HSV
+        cropped_imgs = [[rgb_to_hsv(crop) for crop in cropped_img] for cropped_img in cropped_imgs]
+        initial_descs = [[np.concatenate([_dct(crop[:,:,i], keep_coef=n_coefs) for i in range(2)], axis=0) for crop in cropped_img] for cropped_img in cropped_imgs]
     elif method == "dct-hsv":
         # Convert each crop to HSV
         cropped_imgs = [[rgb_to_hsv(crop) for crop in cropped_img] for cropped_img in cropped_imgs]
@@ -227,10 +247,17 @@ def compute_DCT_descriptors(
         # Convert each crop to XYZ color space
         cropped_imgs = [[cv2.cvtColor(crop, cv2.COLOR_BGR2XYZ) for crop in cropped_img] for cropped_img in cropped_imgs]
         initial_descs = [[np.concatenate([_dct(crop[:,:,i], keep_coef=n_coefs) for i in range(3)], axis=0) for crop in cropped_img] for cropped_img in cropped_imgs]
+    elif method == "dct-rgbhs":
+        # Convert each crop to HSV
+        cropped_imgs = [[create_rgb_hs(crop) for crop in cropped_img] for cropped_img in cropped_imgs]
+        initial_descs = [[np.concatenate([_dct(crop[:,:,i], keep_coef=n_coefs) for i in range(5)], axis=0) for crop in cropped_img] for cropped_img in cropped_imgs]
     elif method == "dct-rgbg":
         # Convert each crop to XYZ color space
         cropped_imgs = [[create_rgb_grayscale(crop) for crop in cropped_img] for cropped_img in cropped_imgs]
         initial_descs = [[np.concatenate([_dct(crop[:,:,i], keep_coef=n_coefs) for i in range(4)], axis=0) for crop in cropped_img] for cropped_img in cropped_imgs]
+    elif method == "dct-g":
+        cropped_imgs = [[cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) for crop in cropped_img] for cropped_img in cropped_imgs]
+        initial_descs = [[_dct(crop, keep_coef=n_coefs) for crop in cropped_img] for cropped_img in cropped_imgs]
     else:
         raise ValueError(f"Invalid method ({method}) for computing image descriptors!")
 

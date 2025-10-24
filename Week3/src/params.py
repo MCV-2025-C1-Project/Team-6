@@ -29,12 +29,12 @@ noise_search_space = {
 
 # Parameters for DCT Grid Search
 dct_search_space = {
-    "method": ["dct-rgbg"],
+    "method": ["dct-hs","dct-hsv","dct-sv","dct-rgb","dct-xyz","dct-rgbhs","dct-rgbg","dct-g"],
     "n_crops": [1],
-    "n_coefs": [150],
-    "axises": [[0],[0,1]],
-    "directions": [[-1],[-1,1]],
-    "thresholds": [12,14,16]
+    "n_coefs": [60,90,120,150,180,210],
+    "axises": [[0,1]],
+    "directions": [[-1,1]],
+    "thresholds": [14]
 }
 
 # Best parameters for descriptor DCT
