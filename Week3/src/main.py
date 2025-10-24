@@ -62,16 +62,17 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
     # Copy to avoid unintended side effects
     processed_images = [img.copy() for img in images]
     
-    if denoise:
-        print("- Denoising images -")
-        print("Noise removal parameters: ", BEST_THRESHOLDS)
-        processed_images = denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
-    else:
-        print("No denoising of images")
-
     if background:
         print("- Background removal -")
         splited_images, masks, painting_counts = remove_background(processed_images)
+
+        if denoise:
+            print("- Denoising images -")
+            print("Noise removal parameters: ", BEST_THRESHOLDS)
+            splited_images = denoise_batch(splited_images, thresholds=BEST_THRESHOLDS)
+        else:
+            print("No denoising of images")
+
         processed_images = crop_images(splited_images, masks)
         tmp = []
         for processed_img in processed_images:
@@ -105,7 +106,7 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
         print("Loading database descriptors...")
 
         bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
-        bbdd_images, painting_counts = process_images(bbdd_images, denoise=True, background=False) 
+        bbdd_images, painting_counts = process_images(bbdd_images, denoise=False, background=False) 
         bbdd_descriptors = compute_DCT_descriptors(bbdd_images, n_crops=n_crops, n_coefs=n_coefs, method=method, save_pkl=True) # Add correct path
 
         #bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
@@ -117,27 +118,7 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
     
     # Group tasks by dataset for clarity
     tasks = [
-        {
-            "name": "QSD1_NoDenoise_NoBG",
-            "images": read_images(dir1),
-            "denoise": False,
-            "background": False,
-            "gt": read_pickle(dir1 / "gt_corresps.pkl")
-        },
-        {
-            "name": "QSD1_Denoised_NoBG",
-            "images": read_images(dir1), # Read again to get a fresh copy
-            "denoise": True,
-            "background": False,
-            "gt": read_pickle(dir1 / "gt_corresps.pkl")
-        },
-        {
-            "name": "QSD2_NoDenoise_BGRemoved",
-            "images": read_images(dir2), 
-            "denoise": False,
-            "background": True,
-            "gt": read_pickle(dir2 / "gt_corresps.pkl")
-        },
+        
         {
             "name": "QSD2_Denoised_BGRemoved",
             "images": read_images(dir2), # Read again to get a fresh copy
