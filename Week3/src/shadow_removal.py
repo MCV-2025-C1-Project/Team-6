@@ -21,7 +21,7 @@ def shadow_removal(img, threshold,axises = [0], directions = [-1]):
             
             # 2. Use a fixed column (e.g., the center column) for the search (instead of a fixed row)
             height = img.shape[0] // 2 
-            width = img.shape[1] // 2 
+            width = img.shape[1] // 4 
             if axis == 0:
                 height = search_seed
             else:

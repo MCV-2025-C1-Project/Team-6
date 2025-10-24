@@ -2,11 +2,7 @@ import numpy as np
 import cv2
 from typing import List, Tuple, Any
 
-from filter_noise import denoise_images
 from background_remover import convert_to_representation, compute_edge_mask
-from params import best_desc_params_dct, best_noise_params
-
-BEST_THRESHOLDS = best_noise_params
 
 def split_image(
     im: np.ndarray,
@@ -44,11 +40,9 @@ def split_image(
         A list containing either two image arrays (left and right splits)
         or the single original image array if the split was not possible.
     """
-    #Filter the image
-    im_den = denoise_images(im, thresholds=BEST_THRESHOLDS, bg_filtering=True)
 
     # Compute edge mask and convert to binary image
-    im_lab = convert_to_representation(im_den)
+    im_lab = convert_to_representation(im)
     mask_bool, _ = compute_edge_mask(im_lab, gradient_threshold=gradient_threshold)
     bin_img = (mask_bool.astype(np.uint8) > 0).astype(np.uint8)
 

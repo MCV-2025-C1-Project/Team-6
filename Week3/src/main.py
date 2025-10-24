@@ -6,6 +6,7 @@ import argparse
 import numpy as np
 from pathlib import Path
 
+from old_noise_fliter import old_denoise_batch
 from shadow_removal import shadow_removal
 from dct_descriptors import compute_DCT_descriptors
 from background_remover import remove_background_morphological_gradient, crop_images
@@ -64,21 +65,27 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
     
     if background:
         print("- Background removal -")
-        splited_images, masks, painting_counts = remove_background(processed_images)
+        initial_denoising = old_denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
+        
+        splited_images, masks, painting_counts = remove_background(initial_denoising)
+        processed_images = crop_images(splited_images, masks)
+
+        tmp = []
+        for processed_img in processed_images:
+            tmp.append(shadow_removal(processed_img,7,[0,1],[-1,1]))
+        
+        processed_images = tmp
 
         if denoise:
             print("- Denoising images -")
             print("Noise removal parameters: ", BEST_THRESHOLDS)
-            splited_images = denoise_batch(splited_images, thresholds=BEST_THRESHOLDS)
+            processed_images = denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
+
         else:
             print("No denoising of images")
 
-        processed_images = crop_images(splited_images, masks)
-        tmp = []
-        for processed_img in processed_images:
-            tmp.append(shadow_removal(processed_img,45))
         
-        processed_images = tmp
+        
         return processed_images, painting_counts
     else:
         print("No background removal")
@@ -105,11 +112,20 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
     try:
         print("Loading database descriptors...")
 
-        bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
-        bbdd_images, painting_counts = process_images(bbdd_images, denoise=False, background=False) 
-        bbdd_descriptors = compute_DCT_descriptors(bbdd_images, n_crops=n_crops, n_coefs=n_coefs, method=method, save_pkl=True) # Add correct path
+        """ bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
 
-        #bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
+        bbdd_images = old_denoise_batch(bbdd_images, thresholds=BEST_THRESHOLDS)
+
+
+        tmp = []
+        for processed_img in bbdd_images:
+            tmp.append(shadow_removal(processed_img,7,[0,1],[-1,1]))
+        
+        bbdd_images = tmp
+
+        bbdd_descriptors = compute_DCT_descriptors(bbdd_images, n_crops=n_crops, n_coefs=n_coefs, method=method, save_pkl=True) # Add correct path """
+
+        bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
 
     except FileNotFoundError:
         print("Unable to load database descriptors. Computing them...")
@@ -142,7 +158,7 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
             # Process Images 
             processed_images, painting_counts = process_images(task["images"], denoise=task["denoise"], background=task["background"]) 
 
-
+            
             # Compute Query Descriptors
             print(f"Computing descriptors for {task['name']}...")
             query_descriptors = compute_DCT_descriptors(processed_images, n_crops=n_crops, n_coefs=n_coefs, method=method)
