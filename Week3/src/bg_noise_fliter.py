@@ -518,7 +518,7 @@ def denoise_images(image: np.ndarray, thresholds: dict | None = None, return_lab
     return (out, labels) if return_labels else out
 
 
-def old_denoise_batch(images: list[np.ndarray], thresholds: dict = None, return_labels: bool = False) -> list[np.ndarray]:
+def denoise_bg_batch(images: list[np.ndarray], thresholds: dict = None, return_labels: bool = False) -> list[np.ndarray]:
     """
     Denoise a batch of images.
     Args:

@@ -29,7 +29,7 @@ noise_search_space = {
 
 # Parameters for DCT Grid Search
 dct_search_space = {
-    "method": ["dct-hs","dct-hsv","dct-sv","dct-rgb","dct-xyz","dct-rgbhs","dct-rgbg","dct-g"],
+    "method": ["dct-hs"],
     "n_crops": [1],
     "n_coefs": [60,90,120,150,180,210],
     "axises": [[0,1]],
@@ -37,11 +37,19 @@ dct_search_space = {
     "thresholds": [14]
 }
 
+""" dct_search_space = {
+    "method": ["dct-hs","dct-hsv","dct-sv","dct-rgb","dct-xyz","dct-rgbhs","dct-rgbg","dct-g"],
+    "n_crops": [1],
+    "n_coefs": [60,90,120,150,180,210],
+    "axises": [[0,1]],
+    "directions": [[-1,1]],
+    "thresholds": [14]
+} """
 # Best parameters for descriptor DCT
 best_desc_params_dct = {
-    "method": "dct-rgb",
+    "method": "dct-rgbhs",
     "n_crops": 1,
-    "n_coefs": 150
+    "n_coefs": 180
 }
 
 # NOTHING TO ADD BECAUSE OF ITS IRRELEVANCE

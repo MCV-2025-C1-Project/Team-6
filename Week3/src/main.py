@@ -6,7 +6,7 @@ import argparse
 import numpy as np
 from pathlib import Path
 
-from old_noise_fliter import old_denoise_batch
+from bg_noise_fliter import denoise_bg_batch
 from shadow_removal import shadow_removal
 from dct_descriptors import compute_DCT_descriptors
 from background_remover import remove_background_morphological_gradient, crop_images
@@ -65,14 +65,14 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
     
     if background:
         print("- Background removal -")
-        initial_denoising = old_denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
+        initial_denoising = denoise_bg_batch(processed_images, thresholds=BEST_THRESHOLDS)
         
         splited_images, masks, painting_counts = remove_background(initial_denoising)
         processed_images = crop_images(splited_images, masks)
 
         tmp = []
         for processed_img in processed_images:
-            tmp.append(shadow_removal(processed_img,7,[0,1],[-1,1]))
+            tmp.append(shadow_removal(processed_img,7))
         
         processed_images = tmp
 
@@ -112,19 +112,7 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
     try:
         print("Loading database descriptors...")
 
-        """ bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
-
-        bbdd_images = old_denoise_batch(bbdd_images, thresholds=BEST_THRESHOLDS)
-
-
-        tmp = []
-        for processed_img in bbdd_images:
-            tmp.append(shadow_removal(processed_img,7,[0,1],[-1,1]))
-        
-        bbdd_images = tmp
-
-        bbdd_descriptors = compute_DCT_descriptors(bbdd_images, n_crops=n_crops, n_coefs=n_coefs, method=method, save_pkl=True) # Add correct path """
-
+      
         bbdd_descriptors = read_pickle(SCRIPT_DIR / "descriptors" / f"{method}_{n_crops}_{n_coefs}.pkl") # Load descriptors from correct path
 
     except FileNotFoundError:
@@ -216,7 +204,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '-dir1', '--data-dir1',
         type=Path,
-        default=SCRIPT_DIR.parent / "qsd1_w3",
+        default=SCRIPT_DIR.parent / "qsd2_w3",
         help='Path to a directory of images without background.'
     )
     parser.add_argument(

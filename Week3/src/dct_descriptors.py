@@ -6,6 +6,7 @@ import argparse
 from typing import List
 from pathlib import Path
 
+from bg_noise_fliter import denoise_bg_batch
 from evaluations.metrics import mean_average_precision
 from utils.io_utils import read_pickle
 from evaluations.similarity_measures import compute_similarities
@@ -20,7 +21,7 @@ from evaluations.metrics import mean_average_precision
 from evaluations.similarity_measures import compute_similarities
 from filter_noise import denoise_batch
 from utils.io_utils import read_images, read_pickle, write_pickle
-from utils.plots import plot_query_results
+
 from params import best_desc_params_dct, best_noise_params
 
 # TODO: explained in compute_dct_descriptors
@@ -323,8 +324,22 @@ if __name__=="__main__":
         query_imgs = read_images(dir)
         gt = read_pickle(dir / "gt_corresps.pkl")
         for threshold in SEARCH_SPACE['thresholds']:
-            processed_images, painting_counts = process_images(query_imgs, denoise=True, background=True,threshold = threshold) 
+            
+            initial_denoising = denoise_bg_batch(query_imgs, thresholds=BEST_THRESHOLDS)
         
+            splited_images, masks, painting_counts = remove_background(initial_denoising)
+            processed_images = crop_images(splited_images, masks)
+
+            tmp = []
+            for processed_img in processed_images:
+                tmp.append(shadow_removal(processed_img,7,[0,1],[-1,1]))
+            
+            processed_images = tmp
+
+            print("- Denoising images -")
+            print("Noise removal parameters: ", BEST_THRESHOLDS)
+            processed_images = denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
+
             for axises in SEARCH_SPACE['axises']:
                 for directions in SEARCH_SPACE['directions']:
                     for n_crop in SEARCH_SPACE['n_crops']:
@@ -347,7 +362,7 @@ if __name__=="__main__":
                                 # Print and save scores por MAP@5
                                 print(f"MAP@{5} score: {map_score:.4f}, using {n_crop} crops, {coef} coefficients.")
                                 with open(SCRIPT_DIR / "outputs" / f"{method}_map_scores.txt", "a") as f:
-                                    f.write(f"MAP@{5} score: {map_score:.4f}, using {method}, {n_crop} crops, {coef} coefficient.\n")
+                                    f.write(f"{map_score:.4f}; {method}; {n_crop}; {coef};\n")
                                 
                                 results_indices = indices[:, :1]
                                 results_similarities = sorted_sims[:, :1]  
@@ -358,7 +373,7 @@ if __name__=="__main__":
                                 # Print and save scores por MAP@1
                                 print(f"MAP@{1} score: {map_score:.4f}, using {n_crop} crops, {coef} coefficients.")
                                 with open(SCRIPT_DIR / "outputs" / f"{method}{axises}{directions}_map_scores.txt", "a") as f:
-                                    f.write(f"MAP@{1} score: {map_score:.4f}, using {method}, {n_crop} crops, {coef} coefficient.\n")
+                                    f.write(f"{map_score:.4f}; {method}; {n_crop}; {coef};\n")
     else:
         # Compute descriptor with the best parameters
         data_descriptor = compute_DCT_descriptors(bbdd_imgs, 
