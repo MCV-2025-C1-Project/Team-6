@@ -62,6 +62,7 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
 
     # Copy to avoid unintended side effects
     processed_images = [img.copy() for img in images]
+    painting_counts = [1] * len(processed_images)
     
     if background:
         print("- Background removal -")
@@ -75,21 +76,19 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
             tmp.append(shadow_removal(processed_img,7))
         
         processed_images = tmp
-
-        if denoise:
-            print("- Denoising images -")
-            print("Noise removal parameters: ", BEST_THRESHOLDS)
-            processed_images = denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
-
-        else:
-            print("No denoising of images")
-
-        
-        
-        return processed_images, painting_counts
     else:
-        print("No background removal")
-        return processed_images, [1] * len(processed_images)
+        print("No background removal") # Case for query set 1
+
+
+    if denoise:
+        print("- Denoising images -")
+        print("Noise removal parameters: ", BEST_THRESHOLDS)
+        processed_images = denoise_batch(processed_images, thresholds=BEST_THRESHOLDS)
+        return processed_images, painting_counts
+
+    else:
+        print("No denoising of images")
+        return processed_images, painting_counts
     
 
 def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
@@ -122,7 +121,27 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
     
     # Group tasks by dataset for clarity
     tasks = [
-        
+        {
+            "name": "QSD1_NoDenoise_NoBG",
+            "images": read_images(dir1),
+            "denoise": False,
+            "background": False,
+            "gt": read_pickle(dir1 / "gt_corresps.pkl")
+        },
+        {
+            "name": "QSD1_Denoised_NoBG",
+            "images": read_images(dir1), # Read again to get a fresh copy
+            "denoise": True,
+            "background": False,
+            "gt": read_pickle(dir1 / "gt_corresps.pkl")
+        },
+        {
+            "name": "QSD2_NoDenoise_BGRemoved",
+            "images": read_images(dir2), 
+            "denoise": False,
+            "background": True,
+            "gt": read_pickle(dir2 / "gt_corresps.pkl")
+        },
         {
             "name": "QSD2_Denoised_BGRemoved",
             "images": read_images(dir2), # Read again to get a fresh copy
@@ -204,7 +223,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '-dir1', '--data-dir1',
         type=Path,
-        default=SCRIPT_DIR.parent / "qsd2_w3",
+        default=SCRIPT_DIR.parent / "qsd1_w3",
         help='Path to a directory of images without background.'
     )
     parser.add_argument(
