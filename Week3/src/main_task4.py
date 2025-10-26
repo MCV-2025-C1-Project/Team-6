@@ -1,5 +1,5 @@
 """
-For test set qsd1_w3
+For development set qsd1_w3
 """
 
 import argparse
@@ -94,11 +94,11 @@ def process_images(images: list[np.ndarray], denoise: bool = False, background: 
 def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
 
     # Create outputs dir where pkl files will be saved
-    outputs_dir = SCRIPT_DIR / "outputs_test" 
+    outputs_dir = SCRIPT_DIR / "outputs" 
     outputs_dir.mkdir(exist_ok=True)
 
     # Central output file for this run
-    output_log_file = outputs_dir / "test_evaluation_log.txt"
+    output_log_file = outputs_dir / "descriptors_evaluation_log.txt"
 
     print("- Applying BBDD descriptors -")
     print("Descriptor parameters:", BEST_DESC)
@@ -120,16 +120,32 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
     # Group tasks by dataset for clarity
     tasks = [
         {
-            "name": "QST1_Denoised_NoBG",
-            "images": read_images(dir1), # Read again to get a fresh copy
-            "denoise": True,
-            "background": False
+            "name": "QSD1_NoDenoise_NoBG",
+            "images": read_images(dir1),
+            "denoise": False,
+            "background": False,
+            "gt": read_pickle(dir1 / "gt_corresps.pkl")
         },
         {
-            "name": "QST2_Denoised_BGRemoved",
+            "name": "QSD1_Denoised_NoBG",
+            "images": read_images(dir1), # Read again to get a fresh copy
+            "denoise": True,
+            "background": False,
+            "gt": read_pickle(dir1 / "gt_corresps.pkl")
+        },
+        {
+            "name": "QSD2_NoDenoise_BGRemoved",
+            "images": read_images(dir2), 
+            "denoise": False,
+            "background": True,
+            "gt": read_pickle(dir2 / "gt_corresps.pkl")
+        },
+        {
+            "name": "QSD2_Denoised_BGRemoved",
             "images": read_images(dir2), # Read again to get a fresh copy
             "denoise": True,
-            "background": True
+            "background": True,
+            "gt": read_pickle(dir2 / "gt_corresps.pkl")
         }
     ]
 
@@ -157,25 +173,43 @@ def main(dir1: Path, dir2: Path, k_results: int = 10) -> None:
 
             # Evaluate
             indices = np.argsort(similarities, axis=1)
+            sorted_sims = np.take_along_axis(similarities, indices, axis=1)
 
-            results = []
-            painting_counter = 0
-            for i in range(len(task["images"])):
-                num_paintings_in_query = painting_counts[i]
-                image_indices = indices[painting_counter : painting_counter + num_paintings_in_query]
+            # In case of two paintings in one image
+            gt = [[item] for sublist in task["gt"] for item in sublist]
 
-                if num_paintings_in_query == 1:
-                    results.append(image_indices[:, :k_results].tolist())
-                else:
-                    # Append a list of lists
-                    results.append(image_indices[:, :k_results].tolist())
+            map1 = mean_average_precision(indices, gt, k=1)
+            map5 = mean_average_precision(indices, gt, k=5)
+
+            # 4.5. Log & Save Results
+            print(f"  MAP@1: {map1:.4f}")
+            print(f"  MAP@5: {map5:.4f}")
+            f.write(f"  MAP@1: {map1:.4f}\n")
+            f.write(f"  MAP@5: {map5:.4f}\n\n")
+
+            plot_query_results(processed_images, indices[:, :5], sorted_sims[:, :5], k=5,  
+                                    save_path=Path(__file__).resolve().parent / 'outputs' / f'query_at{5}_{task["name"]}.png')
+
+            
+            # # THIS PART OF THE CODE WILL BE USEFUL JUST FOR THE TEST SETS
+            # results = []
+            # painting_counter = 0
+            # for i in range(len(task["images"])):
+            #     num_paintings_in_query = painting_counts[i]
+            #     image_indices = indices[painting_counter : painting_counter + num_paintings_in_query]
+
+            #     if num_paintings_in_query == 1:
+            #         results.append(image_indices[:, :k_results].tolist())
+            #     else:
+            #         # Append a list of lists
+            #         results.append(image_indices[:, :k_results].tolist())
                 
-                painting_counter += num_paintings_in_query
+            #     painting_counter += num_paintings_in_query
                 
 
-            results_path = outputs_dir / f"results_{task['name']}.pkl" 
-            write_pickle(results, results_path)
-            print(f"  Saved top {k_results} results to {results_path}")
+            # results_path = outputs_dir / f"results_{task['name']}.pkl" 
+            # write_pickle(results, results_path)
+            # print(f"  Saved top {k_results} results to {results_path}")
 
     print(f"\n--- Pipeline Finished. Full log saved to {output_log_file} ---")
 
@@ -187,13 +221,13 @@ if __name__ == "__main__":
     parser.add_argument(
         '-dir1', '--data-dir1',
         type=Path,
-        default=SCRIPT_DIR.parent / "qst1_w3",
+        default=SCRIPT_DIR.parent / "qsd1_w3",
         help='Path to a directory of images without background.'
     )
     parser.add_argument(
         '-dir2', '--data-dir2',
         type=Path,
-        default=SCRIPT_DIR.parent / "qst2_w3",
+        default=SCRIPT_DIR.parent / "qsd2_w3",
         help='Path to a directory of images with background.'
     )
     dir1 = parser.parse_args().data_dir1
