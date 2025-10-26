@@ -11,3 +11,5 @@ dependencies:
   - ruff
   - scikit-learn
   - scipy
+  - tqdm
+  - scikit-image
