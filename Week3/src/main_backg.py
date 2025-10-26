@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import cv2
 from pathlib import Path
-from segmentation_eval import evaluation
+from Week3.src.evaluations.segmentation_eval import evaluation
 from background_remover import remove_background_morphological_gradient
 from utils.io_utils import read_images
 from image_split import split_image
