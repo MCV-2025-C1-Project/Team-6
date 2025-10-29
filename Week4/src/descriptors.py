@@ -109,7 +109,7 @@ class HarrisSIFTExtractor:
 
 
 ### Helpers ###
-def _extract_one(gray: np.ndarray, method: str,
+def compute_one_descriptor(gray: np.ndarray, method: str,
                  sift: SIFTExtractor, orb: ORBExtractor, hsift: HarrisSIFTExtractor
                 ) -> Tuple[List[cv.KeyPoint], Optional[np.ndarray]]:
     m = method.lower()
@@ -140,7 +140,7 @@ def compute_descriptors(
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY) if img.ndim == 3 else img
         if gray.dtype != np.uint8:
             gray = np.clip(gray*(255 if gray.dtype.kind=='f' and gray.max()<=1 else 1),0,255).astype(np.uint8)
-        key, des = _extract_one(gray, method, sift, orb, hsift)
+        key, des = compute_one_descriptor(gray, method, sift, orb, hsift)
         descriptors.append(des.astype(np.float32) if des is not None else np.empty((0, cv.SIFT_create().descriptorSize() if method!="orb" else cv.ORB_create().descriptorSize()), np.float32))
         keypoints.append(key)
     return keypoints, descriptors
