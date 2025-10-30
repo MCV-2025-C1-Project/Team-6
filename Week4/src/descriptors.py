@@ -13,6 +13,33 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 Keypoints = List[cv.KeyPoint]
 Descriptors = Optional[np.ndarray]
 
+#For saving keypoints
+import cv2
+
+def serialize_keypoints(kps):
+    # kps: List[cv2.KeyPoint] -> List[tuple]
+    return [(kp.pt[0], kp.pt[1], kp.size, kp.angle, kp.response, kp.octave, kp.class_id)
+            for kp in kps]
+
+def deserialize_keypoints(serial):
+    # serial: List[tuple] -> List[cv2.KeyPoint]
+    out = []
+    for x, y, size, angle, response, octave, class_id in serial:
+        out.append(cv2.KeyPoint(x=float(x), y=float(y),
+                                size=float(size), angle=float(angle),
+                                response=float(response), octave=int(octave),
+                                class_id=int(class_id)))
+    return out
+
+def serialize_keypoints_list(list_of_kps):
+    # List[List[cv2.KeyPoint]] -> List[List[tuple]]
+    return [serialize_keypoints(kps) for kps in list_of_kps]
+
+def deserialize_keypoints_list(list_of_serial):
+    # List[List[tuple]] -> List[List[cv2.KeyPoint]]
+    return [deserialize_keypoints(s) for s in list_of_serial]
+
+
 # Helper 
 def _descriptor_len_and_dtype(method: str) -> Tuple[int, np.dtype]:
     m = method.lower()
@@ -170,12 +197,13 @@ def compute_descriptors(
         
         print("Saving descriptors and keypoints...")
         write_pickle(descriptors, SCRIPT_DIR / "descriptors" / f"descriptors_{method}.pkl")
-        write_pickle(keypoints, SCRIPT_DIR / "keypoints" / f"keypoints_{method}.pkl")
+        # SERIALIZA antes de guardar
+        write_pickle(serialize_keypoints_list(keypoints), SCRIPT_DIR / "keypoints" / f"keypoints_{method}.pkl")
     return keypoints, descriptors
 
 if __name__=="__main__":
     imgs = read_images(SCRIPT_DIR.parent / 'qsd1_w4')
-    keys, desc = compute_descriptors(imgs, 'orb', save_pkl=True)
+    keys, desc = compute_descriptors(imgs, 'orb', save_pkl=False)
 
     i = 0
     for img, k in zip(imgs, keys):

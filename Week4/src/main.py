@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 from pathlib import Path
 
-from descriptors import compute_descriptors
+from descriptors import compute_descriptors, deserialize_keypoints_list
 from image_split import split_image
 from shadow_removal import shadow_removal
 from scoring import find_top_ids_for_queries
@@ -92,8 +92,16 @@ def main(dir1: Path) -> None:
     # Load/Compute bbdd descriptors
     try:
         print("Loading database descriptors and keypoints...")
-        desc_bbdd = read_pickle(SCRIPT_DIR / "descriptors" / f"descriptors_{method}.pkl")
-        keys_bbdd = read_pickle(SCRIPT_DIR / "keypoints" / f"keypoints_{method}.pkl")
+        desc_path = SCRIPT_DIR / "descriptors" / f"descriptors_{method}.pkl"
+        keys_path = SCRIPT_DIR / "keypoints"   / f"keypoints_{method}.pkl"
+
+        desc_bbdd = read_pickle(desc_path)
+        keys_bbdd_serial = read_pickle(keys_path)   # <- aquí lees lo serializado (listas de tuplas)
+        keys_bbdd = deserialize_keypoints_list(keys_bbdd_serial)  # <- aquí lo pasas a cv2.KeyPoint
+
+        if len(desc_bbdd) != len(keys_bbdd):
+            raise EOFError(f"Longitudes no coinciden: desc={len(desc_bbdd)} keys={len(keys_bbdd)}")
+
 
     except FileNotFoundError:
         print("Unable to load database descriptors. Computing them...")
@@ -103,7 +111,7 @@ def main(dir1: Path) -> None:
                                                    save_pkl=True)
 
     tasks = [
-        {
+        { 
             "name": "QST2_NoDenoised_NoBG",
             "images": read_images(dir1)[:10], # will use the full, just for dev
             "background": False
