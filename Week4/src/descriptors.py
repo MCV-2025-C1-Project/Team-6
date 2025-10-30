@@ -1,16 +1,25 @@
+import os
 from pathlib import Path
 from typing import List, Optional, Tuple
 
 import cv2 as cv
 import numpy as np
 
-from utils.io_utils import read_images, read_pickle
+from utils.io_utils import read_images, write_pickle
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 Keypoints = List[cv.KeyPoint]
 Descriptors = Optional[np.ndarray]
+
+# Helper 
+def _descriptor_len_and_dtype(method: str) -> Tuple[int, np.dtype]:
+    m = method.lower()
+    if m == "orb":
+        return cv.ORB_create().descriptorSize(), np.uint8   # 32, uint8
+    # sift or hsift
+    return cv.SIFT_create().descriptorSize(), np.float32
 
 ### Extractors ###
 class SIFTExtractor:
@@ -126,54 +135,52 @@ def compute_one_descriptor(gray: np.ndarray, method: str,
 # returns 3D matrix with size (keypoints, descriptor, image)
 def compute_descriptors(
         imgs: List[np.ndarray], 
-        method='sift'
+        method='sift',
+        save_pkl=False
         ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]: 
-    
+    print("Computing descriptors...")
     sift = SIFTExtractor()
     orb = ORBExtractor()
     hsift = HarrisSIFTExtractor()
+
+    desc_len, want_dtype = _descriptor_len_and_dtype(method)
 
     descriptors = []
     keypoints = [] # not necessary, just to see results in main method of the script
     for img in imgs:
         # convert to gray uint8
-        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY) if img.ndim == 3 else img
+        gray = cv.cvtColor(img, cv.COLOR_RGB2GRAY) if img.ndim == 3 else img
         if gray.dtype != np.uint8:
             gray = np.clip(gray*(255 if gray.dtype.kind=='f' and gray.max()<=1 else 1),0,255).astype(np.uint8)
-        key, des = compute_one_descriptor(gray, method, sift, orb, hsift)
-        descriptors.append(des.astype(np.float32) if des is not None else np.empty((0, cv.SIFT_create().descriptorSize() if method!="orb" else cv.ORB_create().descriptorSize()), np.float32))
-        keypoints.append(key)
+        
+        kps, des = compute_one_descriptor(gray, method, sift, orb, hsift)
+        if des is None:
+            des_out = np.empty((0, desc_len), dtype=want_dtype)
+        else:
+            # SIFT/HSIFT -> float32 ; ORB -> uint8
+            des_out = np.ascontiguousarray(des.astype(want_dtype, copy=False))
+
+        keypoints.append(kps)
+        descriptors.append(des_out)
+
+    if save_pkl:
+        # Make directory if not setted up
+        os.makedirs(SCRIPT_DIR / "descriptors", exist_ok=True)
+        os.makedirs(SCRIPT_DIR / "keypoints", exist_ok=True)
+        
+        print("Saving descriptors and keypoints...")
+        write_pickle(descriptors, SCRIPT_DIR / "descriptors" / f"descriptors_{method}.pkl")
+        write_pickle(keypoints, SCRIPT_DIR / "keypoints" / f"keypoints_{method}.pkl")
     return keypoints, descriptors
 
-
-    
 if __name__=="__main__":
-    # sift = SIFTExtractor()
-    # orb = ORBExtractor()
-    # hsift = HarrisSIFTExtractor()
-    # img = cv.imread(SCRIPT_DIR.parent / 'qsd1_w4' / '00001.jpg')
-    # gray= cv.cvtColor(img,cv.COLOR_BGR2GRAY)
-    # kp_sift, des_sift = sift.detect_and_compute(gray)
-    # kp_orb, des_orb = orb.detect_and_compute(gray)
-    # kp_h, des_h = hsift.detect_and_compute(gray)
-    # img_sift=cv.drawKeypoints(gray,kp_sift,img) #,flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
-    # img_orb=cv.drawKeypoints(gray,kp_orb,img) #,flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS
-    # img_h=cv.drawKeypoints(gray,kp_h,img)
-    # print(des_sift)
-    # print(len(kp_sift))
-    # print(len(des_sift))
-    # print(des_sift.shape)
-    # cv.imwrite('sift_keypoints.jpg',img)
-    # cv.imwrite('orb_keypoints.jpg',img)
-    # cv.imwrite('h_keypoints.jpg',img)
-    # print(read_pickle(SCRIPT_DIR.parent / 'qsd1_w4' / 'gt_corresps.pkl'))
-
     imgs = read_images(SCRIPT_DIR.parent / 'qsd1_w4')
-    keys, desc = compute_descriptors(imgs, 'sift')
+    keys, desc = compute_descriptors(imgs, 'orb', save_pkl=True)
 
     i = 0
     for img, k in zip(imgs, keys):
-        gray= cv.cvtColor(img,cv.COLOR_BGR2GRAY)
+        gray= cv.cvtColor(img,cv.COLOR_RGB2GRAY)
         img_orb=cv.drawKeypoints(gray,k,img)
         cv.imwrite(f'test_{i}.jpg',img_orb)
         i += 1
+
