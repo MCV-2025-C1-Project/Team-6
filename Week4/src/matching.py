@@ -15,7 +15,7 @@ information extracted from: https://docs.opencv.org/4.x/dc/dc3/tutorial_py_match
 ### Helpers ###
 # This helpers let us define the matcher backend to use: brute force or flann.
 def _norm_for(descriptor) -> int:
-    return cv.NORM_L2 if descriptor == "sift" else cv.NORM_HAMMING
+    return cv.NORM_L2 if descriptor in ["sift", "hsift"] else cv.NORM_HAMMING
 
 def _bf(descriptor, cross_check: bool) -> cv.BFMatcher:
     return cv.BFMatcher(normType=_norm_for(descriptor), crossCheck=cross_check)
