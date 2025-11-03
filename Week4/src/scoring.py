@@ -5,7 +5,7 @@ from typing import Tuple
 
 from descriptors import compute_descriptors
 from utils.io_utils import read_images
-from matching import bidirectional_ratio_matches, ratio_matches
+from matching import bidirectional_ratio_matches, ratio_matches, bf, flann
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
@@ -13,29 +13,46 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 ### Scoring methods ###
 # Number of surviving matches
 def score_matches_len(des_query, des_target, desc="sift", backend="bf",
-                      use_mutual=True, ratio=0.75) -> int:
+                      use_mutual=True, ratio=0.75, matcher_fwd=None, matcher_rev=None) -> int:
     if use_mutual:
-        matches = bidirectional_ratio_matches(des_query, des_target, desc=desc, backend=backend, ratio=ratio)
+        matches = bidirectional_ratio_matches(des_query, 
+                                              des_target, 
+                                              desc=desc, 
+                                              backend=backend, 
+                                              ratio=ratio,
+                                            matcher_fwd=matcher_fwd, 
+                                            matcher_rev=matcher_rev )
     else:
-        matches = ratio_matches(des_query, des_target, desc=desc, backend=backend, ratio=ratio)
+        matches = ratio_matches(des_query, des_target, desc=desc, backend=backend, ratio=ratio,matcher=matcher_fwd)
     return len(matches)
 
 # RANSAC
 def score_matches_inliers(kp_query, des_query, kp_target, des_target, desc="sift", backend="bf",
                           use_mutual=True, ratio=0.75, model="homography",
-                          ransac_reproj=3.0) -> Tuple[int, float]:
+                          ransac_reproj=3.0, matcher_fwd=None, matcher_rev=None) -> Tuple[int, float]:
     # tentative matches
     if use_mutual:
-        matches = bidirectional_ratio_matches(des_query, des_target, desc=desc, backend=backend, ratio=ratio)
+        matches = bidirectional_ratio_matches(des_query, 
+                                              des_target, 
+                                              desc=desc, 
+                                              backend=backend, 
+                                              ratio=ratio,
+                                               matcher_fwd=matcher_fwd, 
+                                               matcher_rev=matcher_rev)
     else:
-        matches = ratio_matches(des_query, des_target, desc=desc, backend=backend, ratio=ratio)
+        matches = ratio_matches(des_query, des_target, desc=desc, backend=backend, ratio=ratio, matcher=matcher_fwd )
     if len(matches) < 8:
         return 0, 0.0
+    
+    # Cap matches so ransac is much faster
+    matches = matches[:400]
 
     # geometric verification
     # cv.findHomography() expects the points in shape (N, 1, 2) (now they are Nx2)
-    src = np.float32([kp_query[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
-    dst = np.float32([kp_target[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+    # src = np.float32([kp_query[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
+    # dst = np.float32([kp_target[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+    src = np.array([kp_query[m.queryIdx].pt for m in matches], dtype=np.float32)
+    dst = np.array([kp_target[m.trainIdx].pt for m in matches], dtype=np.float32)
 
     # we might have roation, scaling, partial occlusion, noise... better to 
     # estimate a transformation that maps them
@@ -73,17 +90,37 @@ def rank_gallery(
     """
     print("Ranking gallery...")
     ratio = 0.75 if desc in ["sift", "hsift"] else 0.85
+    if backend == "bf":
+        matcher_fwd = bf(desc, cross_check=False)
+        matcher_rev = bf(desc, cross_check=False) if use_mutual else None
+    else:  # "flann"
+        matcher_fwd = flann(desc)
+        matcher_rev = flann(desc) if use_mutual else None
+
     scores = []
     for i, (kp_t, des_t) in enumerate(zip(bbdd_kp or [None]*len(bbdd_desc), bbdd_desc)):
         if use_inliers:
+            # quick filter to see if we should use ransac or not
+            prelim = (bidirectional_ratio_matches if use_mutual else ratio_matches)(
+                des_query, des_t, desc=desc, backend=backend, ratio=ratio, top_k=300,
+                matcher_fwd=matcher_fwd if use_mutual else None,
+                matcher_rev=matcher_rev if use_mutual else None,
+                matcher=matcher_fwd if not use_mutual else None
+            )
+            if len(prelim) < 20:  # MIN_TENTATIVE
+                scores.append((i, 0, 0.0))
+                continue
+
             inl, inl_ratio = score_matches_inliers(
                 kp_query, des_query, kp_t, des_t,
                 desc=desc, backend=backend, use_mutual=use_mutual,
-                ratio=ratio, model=model, ransac_reproj=ransac_reproj)
+                ratio=ratio, model=model, ransac_reproj=ransac_reproj,
+                matcher_fwd=matcher_fwd, matcher_rev=matcher_rev)
             scores.append((i, inl, inl_ratio))
         else:
             s = score_matches_len(des_query, des_t, desc=desc, backend=backend,
-                                  use_mutual=use_mutual, ratio=ratio)
+                                  use_mutual=use_mutual, ratio=ratio,matcher_fwd=matcher_fwd, 
+                                  matcher_rev=matcher_rev )
             scores.append((i, s))
     scores.sort(key=lambda x: x[1], reverse=True)
     return scores
@@ -113,7 +150,7 @@ def decide_unknown(
         is_unknown = (best < T_matches) or ((best - second) < margin)
         return is_unknown, (-1 if is_unknown else best_id), best, second
     
-def infer_num_paintings(ranked, min_inliers=15, ratio_drop=0.5):
+def infer_num_paintings(ranked, min_inliers=15, ratio_drop=0.6):
     """
     ranked: [(img_id, inliers, inlier_ratio), ...] sorted desc by inliers.
     Returns 0, 1 or 2.
@@ -190,18 +227,18 @@ def find_top_ids_for_queries(
 
 if __name__=="__main__":
     print("Read images")
-    queries = read_images(SCRIPT_DIR.parent / "qsd1_w4")[:10]
+    queries = read_images(SCRIPT_DIR.parent / "qsd1_w4")[:3]
     bbdd    = read_images(SCRIPT_DIR.parents[1] / "BBDD")
 
     print("Compute descriptors")
-    keys_q, desc_q = compute_descriptors(queries, method="orb")
-    keys_t, desc_t = compute_descriptors(bbdd,   method="orb")
+    keys_q, desc_q = compute_descriptors(queries, method="sift")
+    keys_t, desc_t = compute_descriptors(bbdd,   method="sift")
 
     # Robust mode (RANSAC):
     # This is really slow, because we use sift + homography + bidirectional (mutual)!
     results = find_top_ids_for_queries(
         keys_q, desc_q, keys_t, desc_t,
-        desc="orb", 
+        desc="sift", 
         backend="flann",
         use_mutual=True,
         use_inliers=True,               

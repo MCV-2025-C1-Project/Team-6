@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import List, Optional
+from operator import attrgetter
 
 import numpy as np
 import cv2 as cv
@@ -17,15 +18,15 @@ information extracted from: https://docs.opencv.org/4.x/dc/dc3/tutorial_py_match
 def _norm_for(descriptor) -> int:
     return cv.NORM_L2 if descriptor in ["sift", "hsift"] else cv.NORM_HAMMING
 
-def _bf(descriptor, cross_check: bool) -> cv.BFMatcher:
+def bf(descriptor, cross_check: bool) -> cv.BFMatcher:
     return cv.BFMatcher(normType=_norm_for(descriptor), crossCheck=cross_check)
 
-def _flann(descriptor) -> cv.FlannBasedMatcher:
+def flann(descriptor) -> cv.FlannBasedMatcher:
     return cv.FlannBasedMatcher(FLANN_MATCHER_PARAMS["index_params"][f"{descriptor}"], 
                                 FLANN_MATCHER_PARAMS["SearchParams"])
 
 def _get_matcher(descriptor, backend, cross_check: bool = False):
-    return _bf(descriptor, cross_check) if backend == "bf" else _flann(descriptor)
+    return bf(descriptor, cross_check) if backend == "bf" else flann(descriptor)
 
 
 ### Main method ###
@@ -41,7 +42,7 @@ def crosscheck_matches(
         return []
  
     # Cross-check only makes sense with BF; if backend=="flann", fall back to BF.
-    matcher = _bf(desc, cross_check=True)
+    matcher = bf(desc, cross_check=True)
     matches = matcher.match(des1, des2)
     matches.sort(key=lambda m: m.distance)
     return matches[:top_k] if top_k is not None else matches
@@ -52,14 +53,15 @@ def ratio_matches(
     desc = "sift", 
     backend = "bf",
     ratio: float = 0.75, 
-    top_k: Optional[int] = None) -> List[cv.DMatch]:
+    top_k: Optional[int] = None,
+    matcher: Optional[cv.DescriptorMatcher] = None) -> List[cv.DMatch]:
     """
     KNN + Lowe's ratio. Works with BF or FLANN.
     """
     if des1 is None or des2 is None or len(des1) == 0 or len(des2) == 0:
         return []
     
-    matcher = _get_matcher(desc, backend, cross_check=False)
+    matcher = matcher or _get_matcher(desc, backend, cross_check=False)
     knn = matcher.knnMatch(des1, des2, k=2) # 2 neighbors for the ratio test
 
     good = []
@@ -68,7 +70,7 @@ def ratio_matches(
         m, n = neigh[0], neigh[1] # m best match, n second best
         if m.distance < ratio * n.distance:
             good.append(m) # match only trustworthy if best neighbor significantly closer than second-best one.
-    good.sort(key=lambda m: m.distance)
+    good.sort(key=attrgetter("distance"))
     return good[:top_k] if top_k is not None else good
 
 def bidirectional_ratio_matches(
@@ -78,14 +80,16 @@ def bidirectional_ratio_matches(
     backend = "bf",
     ratio: float = 0.75, 
     k: int = 2, 
-    top_k: Optional[int] = None) -> List[cv.DMatch]:
+    top_k: Optional[int] = None,
+    matcher_fwd: Optional[cv.DescriptorMatcher] = None, 
+    matcher_rev: Optional[cv.DescriptorMatcher] = None) -> List[cv.DMatch]:
     """
     Bidirectional ratio. queryIdx descriptor of the query, trainIDx descriptor that matches
     in bbdd and distance its distance.
     """
-    fwd = ratio_matches(des1, des2, desc, backend, ratio, top_k=None)
+    fwd = ratio_matches(des1, des2, desc, backend, ratio, top_k=None, matcher=matcher_fwd)
     if not fwd: return []
-    rev = ratio_matches(des2, des1, desc, backend, ratio, top_k=None)
+    rev = ratio_matches(des2, des1, desc, backend, ratio, top_k=None, matcher=matcher_rev)
     rev_pairs = {(m.queryIdx, m.trainIdx) for m in rev}  # (idx in B, idx in A)
     mutual = [m for m in fwd if (m.trainIdx, m.queryIdx) in rev_pairs]
     mutual.sort(key=lambda m: m.distance)
