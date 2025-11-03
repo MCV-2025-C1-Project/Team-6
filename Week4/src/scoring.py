@@ -141,7 +141,8 @@ def find_top_ids_for_queries(
     infer_from_inliers=True, #decide 0/1/2 paintings automatically
     T_matches=12, T_inl=15, T_ratio=0.30, margin=3,
     top_n=2,
-    infer_ratio_drop=0.6):
+    infer_ratio_drop=0.6,
+    splits = False):
     """
     Returns: [[-1], [150], [48, 251], ...]
     """

@@ -11,7 +11,7 @@ from evaluations.metrics import mean_average_precision
 from background_remover import remove_background_morphological_gradient, crop_images
 from evaluations.similarity_measures import compute_similarities
 from utils.io_utils import read_images, read_pickle, write_pickle
-from utils.plots import plot_query_results
+#from utils.plots import plot_query_results
 
 from params import BEST_DESCRIPTOR_PARAMS, BEST_NOISE_PARAMS
 
@@ -114,7 +114,8 @@ def main(dir1: Path) -> None:
         { 
             "name": "QST2_NoDenoised_NoBG",
             "images": read_images(dir1)[:10], # will use the full, just for dev
-            "background": False
+            "background": False,
+            "splits": True,
         }
     ]
     
@@ -134,7 +135,7 @@ def main(dir1: Path) -> None:
                 task["images"], background=task["background"])
             # Compute Query Descriptors
             print(f"Computing descriptors...")
-            keys_q, desc_q = compute_descriptors(processed_images, method=BEST_DESCRIPTOR_PARAMS["method"])
+            keys_q, desc_q = compute_descriptors(processed_images, method=BEST_DESCRIPTOR_PARAMS["method"], splits=task["splits"])
 
             # Rank: this is really slow, we have all activated, can deactivate things...
             results = find_top_ids_for_queries(
@@ -145,9 +146,10 @@ def main(dir1: Path) -> None:
                 use_inliers=True,            
                 model="homography", ransac_reproj=3.0,
                 T_inl=15, T_ratio=0.30, margin=3,
-                top_n=2, # For fallback if we do not use use_inliners and infer_from_inliners, return first, second
+                top_n=1, # For fallback if we do not use use_inliners and infer_from_inliners, return first, second
                 infer_from_inliers=True,
-                infer_ratio_drop=0.6
+                infer_ratio_drop=0.6,
+                splits=task["splits"]
             )
 
             print(results)

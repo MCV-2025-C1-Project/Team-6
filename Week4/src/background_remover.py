@@ -21,7 +21,7 @@ def compute_edge_mask(im_lab, gradient_threshold=0.15):
     L, a, b = im_lab
 
     # Compute morphological gradients per channel
-    grad_L = morphological_gradient(L, structure=np.ones((5, 5)))
+    grad_L = morphological_gradient(L, structure=np.ones((5, 5))) * 0.35
     grad_a = morphological_gradient(a, structure=np.ones((5, 5)))
     grad_b = morphological_gradient(b, structure=np.ones((5, 5)))
 
