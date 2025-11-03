@@ -9,7 +9,7 @@ from utils.io_utils import read_images, write_pickle
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-MAX_DESCRIPTOR_LENGTH = 3000
+MAX_DESCRIPTOR_LENGTH = 2000
 
 Keypoints = List[cv.KeyPoint]
 Descriptors = Optional[np.ndarray]
