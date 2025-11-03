@@ -135,7 +135,7 @@ def main(dir1: Path) -> None:
                 task["images"], background=task["background"])
             # Compute Query Descriptors
             print(f"Computing descriptors...")
-            keys_q, desc_q = compute_descriptors(processed_images, method=BEST_DESCRIPTOR_PARAMS["method"], splits=task["splits"])
+            keys_q, desc_q, painting_counts = compute_descriptors(processed_images, method=BEST_DESCRIPTOR_PARAMS["method"], splits=task["splits"])
 
             # Rank: this is really slow, we have all activated, can deactivate things...
             results = find_top_ids_for_queries(
@@ -149,7 +149,8 @@ def main(dir1: Path) -> None:
                 top_n=1, # For fallback if we do not use use_inliners and infer_from_inliners, return first, second
                 infer_from_inliers=True,
                 infer_ratio_drop=0.6,
-                splits=task["splits"]
+                splits=task["splits"],
+                paint_counts = painting_counts
             )
 
             print(results)

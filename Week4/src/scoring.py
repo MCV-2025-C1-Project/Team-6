@@ -170,6 +170,7 @@ def find_top_ids_for_queries(
     queries_desc,
     bbdd_kp, 
     bbdd_desc,
+    paint_counts,
     desc="sift", 
     backend="flann",
     use_mutual=True,
@@ -184,6 +185,12 @@ def find_top_ids_for_queries(
     Returns: [[-1], [150], [48, 251], ...]
     """
     results = []
+    # Estado para agrupar por imagen original cuando splits=True
+    pc_idx = 0
+    pending_group = []
+    remaining_in_group = paint_counts[0] if splits and paint_counts else 1
+
+    
     for kp_q, des_q in zip(queries_kp, queries_desc):
         if des_q is None or len(des_q) == 0:
             print("No descriptor was computed.")
@@ -198,7 +205,37 @@ def find_top_ids_for_queries(
             model=model, ransac_reproj=ransac_reproj
         )
 
-        if use_inliers and infer_from_inliers and top_n != 1:
+        if top_n == 1 and splits:
+            # decidir si es desconocido o no (mismos umbrales que el fallback)
+            is_unk, _, _, _ = decide_unknown(
+                ranked,
+                use_inliers=use_inliers,
+                T_matches=T_matches, T_inl=T_inl, T_ratio=T_ratio, margin=margin
+            )
+            best_id = -1 if is_unk else ranked[0][0]
+
+            # Agrupar según paint_counts: 1 -> [id]; 2 -> esperar siguiente subimagen -> [id1, id2]
+            if remaining_in_group == 1 and len(pending_group) == 0 and paint_counts[pc_idx] == 1:
+                # caso 1: imagen no dividida
+                results.append([best_id])
+                pc_idx += 1
+                if pc_idx < len(paint_counts):
+                    remaining_in_group = paint_counts[pc_idx]
+                continue
+            else:
+                # caso 2: imagen dividida (o estamos acumulando)
+                pending_group.append(best_id)
+                remaining_in_group -= 1
+                if remaining_in_group == 0:
+                    results.append(pending_group[:])
+                    pending_group.clear()
+                    pc_idx += 1
+                    if pc_idx < len(paint_counts):
+                        remaining_in_group = paint_counts[pc_idx]
+                continue
+
+
+        elif use_inliers and infer_from_inliers and top_n != 1:
             # Decide 0/1/2 purely from inlier peaks
             n = infer_num_paintings(ranked, min_inliers=T_inl, ratio_drop=infer_ratio_drop)
             if n == 0:
