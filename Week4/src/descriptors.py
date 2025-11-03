@@ -9,12 +9,11 @@ from utils.io_utils import read_images, write_pickle
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+MAX_DESCRIPTOR_LENGTH = 3000
 
 Keypoints = List[cv.KeyPoint]
 Descriptors = Optional[np.ndarray]
 
-#For saving keypoints
-import cv2
 
 def serialize_keypoints(kps):
     # kps: List[cv2.KeyPoint] -> List[tuple]
@@ -25,7 +24,7 @@ def deserialize_keypoints(serial):
     # serial: List[tuple] -> List[cv2.KeyPoint]
     out = []
     for x, y, size, angle, response, octave, class_id in serial:
-        out.append(cv2.KeyPoint(x=float(x), y=float(y),
+        out.append(cv.KeyPoint(x=float(x), y=float(y),
                                 size=float(size), angle=float(angle),
                                 response=float(response), octave=int(octave),
                                 class_id=int(class_id)))
@@ -44,15 +43,15 @@ def deserialize_keypoints_list(list_of_serial):
 def _descriptor_len_and_dtype(method: str) -> Tuple[int, np.dtype]:
     m = method.lower()
     if m == "orb":
-        return cv.ORB_create().descriptorSize(), np.uint8   # 32, uint8
+        return cv.ORB_create(MAX_DESCRIPTOR_LENGTH).descriptorSize(), np.uint8   # 32, uint8
     # sift or hsift
-    return cv.SIFT_create().descriptorSize(), np.float32
+    return cv.SIFT_create(MAX_DESCRIPTOR_LENGTH).descriptorSize(), np.float32
 
 ### Extractors ###
 class SIFTExtractor:
     """Reusable SIFT wrapper. Single thread. Uses DoG and gradient histograms."""
     def __init__(self):
-        self.sift = cv.SIFT_create()
+        self.sift = cv.SIFT_create(MAX_DESCRIPTOR_LENGTH)
 
     def detect(self, gray: np.ndarray, mask: Optional[np.ndarray] = None) -> Keypoints:
         """Detect keypoints."""
@@ -71,7 +70,7 @@ class SIFTExtractor:
 class ORBExtractor:
     """Reusable ORB wrapper. Single thread. Uses FAST (kp) and BRIEF (descriptors)."""
     def __init__(self):
-        self.orb = cv.ORB_create()
+        self.orb = cv.ORB_create(MAX_DESCRIPTOR_LENGTH)
 
     def detect(self, gray: np.ndarray, mask: Optional[np.ndarray] = None) -> Keypoints:
         """Detect keypoints."""
@@ -106,7 +105,7 @@ class HarrisSIFTExtractor:
         self.min_distance = float(min_distance)
         self.kp_size = float(kp_size)
 
-        self.sift = cv.SIFT_create()
+        self.sift = cv.SIFT_create(MAX_DESCRIPTOR_LENGTH)
     
     def detect(self, gray: np.ndarray, mask: Optional[np.ndarray] = None) -> Keypoints:
         """Detect Harris corners and convert them to cv.KeyPoint list."""
@@ -203,7 +202,7 @@ def compute_descriptors(
 
 if __name__=="__main__":
     imgs = read_images(SCRIPT_DIR.parent / 'qsd1_w4')
-    keys, desc = compute_descriptors(imgs, 'orb', save_pkl=False)
+    keys, desc = compute_descriptors(imgs, 'sift', save_pkl=False)
 
     i = 0
     for img, k in zip(imgs, keys):

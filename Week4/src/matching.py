@@ -38,7 +38,6 @@ def crosscheck_matches(
     BF cross-check (fast). Does not apply ratio, less discriminative, more false positives.
     """
     if des1 is None or des2 is None or len(des1) == 0 or len(des2) == 0:
-        print("No descriptors to match.")
         return []
  
     # Cross-check only makes sense with BF; if backend=="flann", fall back to BF.
@@ -58,7 +57,6 @@ def ratio_matches(
     KNN + Lowe's ratio. Works with BF or FLANN.
     """
     if des1 is None or des2 is None or len(des1) == 0 or len(des2) == 0:
-        print("No descriptors to match.")
         return []
     
     matcher = _get_matcher(desc, backend, cross_check=False)
@@ -95,9 +93,9 @@ def bidirectional_ratio_matches(
 
 
 if __name__=="__main__":
-    SCRIPT_DIR = Path(__file__).resolve().parents[1]
+    SCRIPT_DIR = Path(__file__).resolve().parent
     img1 = cv.imread(SCRIPT_DIR.parent / 'qsd1_w4' / '00001.jpg')
-    img2 = cv.imread(SCRIPT_DIR.parent / 'qsd1_w4' / '00002.jpg')
+    img2 = cv.imread(SCRIPT_DIR.parent / 'qsd1_w4' / '00001.jpg')
     gray1 = cv.cvtColor(img1,cv.COLOR_BGR2GRAY)
     gray2 = cv.cvtColor(img2,cv.COLOR_BGR2GRAY)
 

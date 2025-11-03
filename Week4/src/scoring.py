@@ -72,7 +72,7 @@ def rank_gallery(
       - else: [(img_id, matches), ...]
     """
     print("Ranking gallery...")
-    ratio = 0.75 if desc=="sift" else 0.85
+    ratio = 0.75 if desc in ["sift", "hsift"] else 0.85
     scores = []
     for i, (kp_t, des_t) in enumerate(zip(bbdd_kp or [None]*len(bbdd_desc), bbdd_desc)):
         if use_inliers:
@@ -194,14 +194,14 @@ if __name__=="__main__":
     bbdd    = read_images(SCRIPT_DIR.parents[1] / "BBDD")
 
     print("Compute descriptors")
-    keys_q, desc_q = compute_descriptors(queries, method="sift")
-    keys_t, desc_t = compute_descriptors(bbdd,   method="sift")
+    keys_q, desc_q = compute_descriptors(queries, method="orb")
+    keys_t, desc_t = compute_descriptors(bbdd,   method="orb")
 
     # Robust mode (RANSAC):
     # This is really slow, because we use sift + homography + bidirectional (mutual)!
     results = find_top_ids_for_queries(
         keys_q, desc_q, keys_t, desc_t,
-        desc="sift", 
+        desc="orb", 
         backend="flann",
         use_mutual=True,
         use_inliers=True,               
