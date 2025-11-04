@@ -14,14 +14,14 @@ from scipy.ndimage import uniform_filter
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from skimage.metrics import structural_similarity as ssim
 
-from params import noise_search_space, base_thresholds, best_noise_params
+from params import noise_search_space, base_thresholds, BEST_NOISE_PARAMS
 from utils.io_utils import read_images
 from utils.color_spaces import rgb_to_ycrcb
 from utils.plots import plot_all_comparisons
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 BASE_THRESHOLDS = base_thresholds
-BEST_THRESHOLDS = best_noise_params  
+BEST_THRESHOLDS = BEST_NOISE_PARAMS
 SEARCH_SPACE = noise_search_space 
 
 # TODO: Change the plot in order to save it as a full .png with all the images and

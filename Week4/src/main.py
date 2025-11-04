@@ -1,133 +1,95 @@
-
 import argparse
 import numpy as np
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 from descriptors import compute_descriptors, deserialize_keypoints_list
 from image_split import split_image
 from shadow_removal import shadow_removal
 from scoring import find_top_ids_for_queries
-from evaluations.metrics import mean_average_precision
 from background_remover import remove_background_morphological_gradient, crop_images
-from evaluations.similarity_measures import compute_similarities
 from utils.io_utils import read_images, read_pickle, write_pickle
-#from utils.plots import plot_query_results
 
-from params import BEST_DESCRIPTOR_PARAMS, BEST_NOISE_PARAMS
+from params import BEST_DESCRIPTOR_PARAMS
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 
-def agrupate_results_by_original_image(results: List[List[int]], painting_counts: List[int]) -> List[List[int]]:
-    """
-    Agrupa resultados planos de subimágenes según painting_counts.
-    - results: p.ej. [[-1], [150], [48], [251], ...]
-    - painting_counts: p.ej. [1, 2, 1, 1, ...]
-    Devuelve: p.ej. [[-1], [150, 48], [251], ...]
-    """
-    grouped: List[List[int]] = []
-    i = 0
-    n = len(results)
 
-    for cnt in painting_counts:
-        if i >= n:
-            break  # nada más que agrupar
-
-        # Asegura que extendemos con listas (por si vinieran tuplas/iterables)
-        def as_list(x): 
-            return list(x) if isinstance(x, (list, tuple)) else [x]
-
-        if cnt == 1:
-            grouped.append(as_list(results[i]))
-            i += 1
-        elif cnt == 2:
-            if i + 1 < n:
-                merged = as_list(results[i]) + as_list(results[i + 1])
-                i += 2
-            else:
-                # Caso borde: falta la segunda subimagen, devolvemos lo que haya
-                merged = as_list(results[i])
-                i += 1
-            grouped.append(merged)
-        else:
-            # Por si algún día llega un valor distinto de 1 o 2:
-            take = min(cnt, n - i)
-            merged: List[int] = []
-            for j in range(take):
-                merged += as_list(results[i + j])
-            grouped.append(merged)
-            i += take
-
-    return grouped
-
-
+# Helper
+def to_py_int_results(results):
+    cleaned = []
+    for row in results:
+        if isinstance(row, np.ndarray):
+            row = row.tolist()
+        cleaned.append([int(x) for x in row])
+    return cleaned
 
 ### Week 3 methods ###
-"""
-I do not know if we should use it or not. Migbt be nice to try the find_top_ids_for_queries with
-infer inliners and use inliners True, so it returns the num.paintings it expects. Then try
-background + find_top_ids_for_queries (remember to set top_n = 1; check logic in scoring.py).
-See which ones has better results.
-"""
-def remove_background(images: list[np.ndarray]):
+def split_images(images: list[np.ndarray]) -> Tuple[list[np.ndarray], list[int]]:
     """
-    Removes the background from a list of images.
-    Returns a list of boolean masks.
+    Split images into parts (0/1/2) WITHOUT background removal.
+    Returns:
+      - split_parts: flat list of all parts in order
+      - painting_counts: per original image, number of parts produced (1 or 2)
     """
-    predictions = []
-    splited_images = []
-    painting_counts = []
-    
-    # Remove background of images
-    for i, image in enumerate(images):
-        parts = split_image(image)
-        # masks = []
+    split_parts: list[np.ndarray] = []
+    painting_counts: list[int] = []
 
-        if len(parts) == 2:
-            painting_counts.append(2)
-        else:
-            painting_counts.append(1)
-        
-        for part in parts:
-            _, pred_mask, _, _ = remove_background_morphological_gradient(part)
-            splited_images.append(part)
-            predictions.append(pred_mask.astype(bool))
+    for img in images:
+        parts = split_image(img)
+        painting_counts.append(2 if len(parts) == 2 else 1)
+        split_parts.extend(parts)
 
-    return splited_images, predictions, painting_counts # For each image, a mask
+    return split_parts, painting_counts
 
-
-def process_images(images: list[np.ndarray], background: bool = False):
+def remove_background(parts: list[np.ndarray]) -> tuple[list[np.ndarray], list[np.ndarray]]:
     """
-    Applies denoising and/or background removal to a list of images.
+    Run BG removal on already-split parts.
+    Returns:
+      - cropped_parts: list[np.ndarray] after cropping with masks
+      - masks: list[np.ndarray] boolean masks (same length as parts)
     """
+    masks: list[np.ndarray] = []
+    for part in parts:
+        _, pred_mask, _, _ = remove_background_morphological_gradient(part)
+        masks.append(pred_mask.astype(bool))
 
-    # Copy to avoid unintended side effects
-    processed_images = [img.copy() for img in images]
-    painting_counts = [1] * len(processed_images)
-    
-    if background:
-        print("- Background removal -")
-        splited_images, masks, painting_counts = remove_background(processed_images)
-        processed_images = crop_images(splited_images, masks)
+    cropped_parts = crop_images(parts, masks)
+    return cropped_parts, masks
 
-        tmp = []
-        for processed_img in processed_images:
-            tmp.append(shadow_removal(processed_img,7))
-        
-        processed_images = tmp
+def process_images(
+    images: list[np.ndarray],
+    split: bool = True,
+    background: bool = False,
+    do_shadow: bool = False,
+    shadow_ksize: int = 7) -> tuple[list[np.ndarray], list[int]]:
+    """
+    1) optionally split
+    2) optionally background removal (requires split if True)
+    3) optionally shadow removal
+    Returns:
+      - processed_images (list[np.ndarray])
+      - painting_counts (list[int]) aligned to original inputs
+    """
+    if split:
+        parts, painting_counts = split_images(images)
     else:
-        print("No background removal")
+        parts = [img.copy() for img in images]
+        painting_counts = [1] * len(images)
 
-    return processed_images, painting_counts
+    if background:
+        parts, _ = remove_background(parts)
+
+    if do_shadow:
+        parts = [shadow_removal(p, shadow_ksize) for p in parts]
+
+    return parts, painting_counts
     
 
 ### Main method ###
 def main(dir1: Path) -> None:
-    # Create outputs dir where pkl files will be saved
-    outputs_dir = SCRIPT_DIR / "outputs_test" 
+    outputs_dir = SCRIPT_DIR / "outputs_test"
     outputs_dir.mkdir(exist_ok=True)
-
-    # Central output file for this run
     output_log_file = outputs_dir / "test_evaluation_log.txt"
 
     print("- Applying BBDD descriptors -")
@@ -140,26 +102,24 @@ def main(dir1: Path) -> None:
         keys_path = SCRIPT_DIR / "keypoints"   / f"keypoints_{method}.pkl"
 
         desc_bbdd = read_pickle(desc_path)
-        keys_bbdd_serial = read_pickle(keys_path)   # <- aquí lees lo serializado (listas de tuplas)
-        keys_bbdd = deserialize_keypoints_list(keys_bbdd_serial)  # <- aquí lo pasas a cv2.KeyPoint
+        keys_bbdd_serial = read_pickle(keys_path)  
+        keys_bbdd = deserialize_keypoints_list(keys_bbdd_serial)  
 
         if len(desc_bbdd) != len(keys_bbdd):
-            raise EOFError(f"Longitudes no coinciden: desc={len(desc_bbdd)} keys={len(keys_bbdd)}")
-
+            raise EOFError(f"Length mismatch: desc={len(desc_bbdd)} keys={len(keys_bbdd)}")
 
     except FileNotFoundError:
         print("Unable to load database descriptors. Computing them...")
         bbdd_images = read_images(SCRIPT_DIR.parent.parent / "BBDD")
         keys_bbdd, desc_bbdd = compute_descriptors(bbdd_images, 
-                                                   BEST_DESCRIPTOR_PARAMS["method"], 
+                                                   method=BEST_DESCRIPTOR_PARAMS["method"], 
                                                    save_pkl=True)
 
     tasks = [
-        { 
-            "name": "QST2_NoDenoised_NoBG",
-            "images": read_images(dir1)[:10], # will use the full, just for dev
-            "background": False,
-            "splits": True,
+        {
+            "name": "QSD4",
+            "images": read_images(dir1),
+            "split": BEST_DESCRIPTOR_PARAMS["split"],
         }
     ]
     
@@ -167,7 +127,6 @@ def main(dir1: Path) -> None:
     with open(output_log_file, 'w') as f:
         f.write("Evaluation Results\n")
         f.write(f"Descriptor: {method}\n")
-        f.write(f"Noise Params: {BEST_NOISE_PARAMS}\n")
         f.write("="*30 + "\n\n")
 
         for task in tasks:
@@ -175,31 +134,41 @@ def main(dir1: Path) -> None:
             f.write(f"--- Task: {task['name']} ---\n")
 
             # Process Images 
-            processed_images, _ = process_images(
-                task["images"], background=task["background"])
+            processed_images, painting_counts = process_images(task["images"], split=task["split"], background=False)
+
             # Compute Query Descriptors
             print(f"Computing descriptors...")
-            keys_q, desc_q, painting_counts = compute_descriptors(processed_images, method=BEST_DESCRIPTOR_PARAMS["method"], splits=task["splits"])
+            keys_q, desc_q = compute_descriptors(processed_images, 
+                                                method=BEST_DESCRIPTOR_PARAMS["method"],
+                                                save_pkl=False)
 
             # Rank: this is really slow, we have all activated, can deactivate things...
             results = find_top_ids_for_queries(
-                keys_q, desc_q, keys_bbdd, desc_bbdd,
-                desc=BEST_DESCRIPTOR_PARAMS["method"], 
-                backend="flann",
-                use_mutual=True, 
-                use_inliers=True,            
-                model="homography", ransac_reproj=3.0,
-                T_inl=15, T_ratio=0.30, margin=3,
-                top_n=1, # For fallback if we do not use use_inliners and infer_from_inliners, return first, second
+                queries_kp=keys_q,
+                queries_desc=desc_q,
+                bbdd_kp=keys_bbdd,
+                bbdd_desc=desc_bbdd, 
+                paint_counts=painting_counts,       
+                desc=method,
+                backend=BEST_DESCRIPTOR_PARAMS["backend"],
+                use_mutual=True,
+                use_inliers=True,
+                model="homography",
+                ransac_reproj=BEST_DESCRIPTOR_PARAMS["ransac_reproj"],
+                # inference / calibrated knobs
                 infer_from_inliers=True,
-                infer_ratio_drop=0.6
+                T_inl=BEST_DESCRIPTOR_PARAMS["T_inl"],
+                T_ratio=BEST_DESCRIPTOR_PARAMS["T_ratio"],
+                T_peak_ratio=BEST_DESCRIPTOR_PARAMS["T_peak_ratio"],
+                T_z=BEST_DESCRIPTOR_PARAMS["T_z"],
+                k_stat=BEST_DESCRIPTOR_PARAMS["k_stat"],
+                top_n=2,
+                # mode
+                splits=task["split"]
             )
-            if task["splits"]:
-                results = agrupate_results_by_original_image(results, painting_counts)
-            
-                
 
-            print(results)
+            results = to_py_int_results(results)
+            print(f'RESULTS: {results}')
             results_path = outputs_dir / f"results_{task['name']}.pkl" 
             write_pickle(results, results_path)
 

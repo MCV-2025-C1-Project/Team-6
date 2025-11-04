@@ -1,22 +1,29 @@
 FLANN_MATCHER_PARAMS = {
     "index_params": {
-        "sift": dict(algorithm=1, tress=5),
-        "hsift": dict(algorithm=1, tress=5),
+        "sift": dict(algorithm=1, trees=5),
+        "hsift": dict(algorithm=1, trees=5),
         "orb": dict(algorithm= 6,table_number= 6, key_size= 12, multi_probe_level= 1)
     },
     "SearchParams": dict(checks=50)
 }
 
 BEST_DESCRIPTOR_PARAMS = {
-    "method": "sift"
-} #this has not been tested yet...
-
-BEST_NOISE_PARAMS = {
-    "sp_impulse": 0.08,   
-    "sig_gauss":  0.05,   
-    "blk_jpeg":   1.15,   
-    "chr_chroma": 0.25,   
-    "vol_blur":   80.0 
+    "method": "sift",         
+    "backend": "flann", #bf for orb
+    "use_mutual": True, #bidirectional ratio for cleaner matches
+    "use_inliers": True, # rank by RANSAC inliers 
+    # (RANSAC) 
+    "model": "homography",       
+    "ransac_reproj": 3.0,
+    # Calibrated unknown logic ---
+    "T_inl": 20,                
+    "T_ratio": 0.30,             
+    "T_peak_ratio": 1.7,        
+    "T_z": 3.5,                  
+    "k_stat": 50,              
+    # Preprocessing flags for main
+    "split": True,              
+    "background": False
 }
 
 
@@ -32,7 +39,7 @@ base_thresholds = {
 }
 
 # Best noise parameters to test the queries set
-best_noise_params = {
+BEST_NOISE_PARAMS = {
     "sp_impulse": 0.08,   
     "sig_gauss":  0.05,   
     "blk_jpeg":   1.15,   

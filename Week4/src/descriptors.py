@@ -5,8 +5,6 @@ from typing import List, Optional, Tuple
 import cv2 as cv
 import numpy as np
 
-
-from image_split import split_image
 from utils.io_utils import read_images, write_pickle
 
 
@@ -164,8 +162,7 @@ def compute_one_descriptor(gray: np.ndarray, method: str,
 def compute_descriptors(
         imgs: List[np.ndarray], 
         method='sift',
-        save_pkl=False,
-        splits: bool = True
+        save_pkl=False
         ):
     print("Computing descriptors...")
     sift = SIFTExtractor()
@@ -176,28 +173,22 @@ def compute_descriptors(
 
     descriptors = []
     keypoints = []
-    painting_count: List[int] = []
 
-    for img in imgs:
-        # decidir subimágenes (1 o 2, según split_image)
-        subimgs = split_image(img) if splits else [img]
-        painting_count.append(len(subimgs))
+    for im in imgs:
+        # convert to gray uint8
+        gray = cv.cvtColor(im, cv.COLOR_RGB2GRAY) if im.ndim == 3 else im
+        if gray.dtype != np.uint8:
+            gray = np.clip(gray*(255 if gray.dtype.kind=='f' and gray.max()<=1 else 1),0,255).astype(np.uint8)
+        
+        kps, des = compute_one_descriptor(gray, method, sift, orb, hsift)
+        if des is None:
+            des_out = np.empty((0, desc_len), dtype=want_dtype)
+        else:
+            # SIFT/HSIFT -> float32 ; ORB -> uint8
+            des_out = np.ascontiguousarray(des.astype(want_dtype, copy=False))
 
-        for sub in subimgs:
-            # convert to gray uint8
-            gray = cv.cvtColor(sub, cv.COLOR_RGB2GRAY) if sub.ndim == 3 else sub
-            if gray.dtype != np.uint8:
-                gray = np.clip(gray*(255 if gray.dtype.kind=='f' and gray.max()<=1 else 1),0,255).astype(np.uint8)
-            
-            kps, des = compute_one_descriptor(gray, method, sift, orb, hsift)
-            if des is None:
-                des_out = np.empty((0, desc_len), dtype=want_dtype)
-            else:
-                # SIFT/HSIFT -> float32 ; ORB -> uint8
-                des_out = np.ascontiguousarray(des.astype(want_dtype, copy=False))
-
-            keypoints.append(kps)
-            descriptors.append(des_out)
+        keypoints.append(kps)
+        descriptors.append(des_out)
 
     if save_pkl:
         # Make directory if not setted up
@@ -209,10 +200,7 @@ def compute_descriptors(
         # SERIALIZA antes de guardar
         write_pickle(serialize_keypoints_list(keypoints), SCRIPT_DIR / "keypoints" / f"keypoints_{method}.pkl")
 
-        # (opcional) guardar también painting_count para trazabilidad
-        write_pickle(painting_count, SCRIPT_DIR / "descriptors" / f"painting_count_{method}.pkl")
-
-    return keypoints, descriptors, painting_count
+    return keypoints, descriptors
 
 
 if __name__=="__main__":
