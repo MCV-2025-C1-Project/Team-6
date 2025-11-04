@@ -2,6 +2,7 @@
 import argparse
 import numpy as np
 from pathlib import Path
+from typing import List
 
 from descriptors import compute_descriptors, deserialize_keypoints_list
 from image_split import split_image
@@ -16,6 +17,49 @@ from utils.io_utils import read_images, read_pickle, write_pickle
 from params import BEST_DESCRIPTOR_PARAMS, BEST_NOISE_PARAMS
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+def agrupate_results_by_original_image(results: List[List[int]], painting_counts: List[int]) -> List[List[int]]:
+    """
+    Agrupa resultados planos de subimágenes según painting_counts.
+    - results: p.ej. [[-1], [150], [48], [251], ...]
+    - painting_counts: p.ej. [1, 2, 1, 1, ...]
+    Devuelve: p.ej. [[-1], [150, 48], [251], ...]
+    """
+    grouped: List[List[int]] = []
+    i = 0
+    n = len(results)
+
+    for cnt in painting_counts:
+        if i >= n:
+            break  # nada más que agrupar
+
+        # Asegura que extendemos con listas (por si vinieran tuplas/iterables)
+        def as_list(x): 
+            return list(x) if isinstance(x, (list, tuple)) else [x]
+
+        if cnt == 1:
+            grouped.append(as_list(results[i]))
+            i += 1
+        elif cnt == 2:
+            if i + 1 < n:
+                merged = as_list(results[i]) + as_list(results[i + 1])
+                i += 2
+            else:
+                # Caso borde: falta la segunda subimagen, devolvemos lo que haya
+                merged = as_list(results[i])
+                i += 1
+            grouped.append(merged)
+        else:
+            # Por si algún día llega un valor distinto de 1 o 2:
+            take = min(cnt, n - i)
+            merged: List[int] = []
+            for j in range(take):
+                merged += as_list(results[i + j])
+            grouped.append(merged)
+            i += take
+
+    return grouped
+
 
 
 ### Week 3 methods ###
@@ -148,10 +192,12 @@ def main(dir1: Path) -> None:
                 T_inl=15, T_ratio=0.30, margin=3,
                 top_n=1, # For fallback if we do not use use_inliners and infer_from_inliners, return first, second
                 infer_from_inliers=True,
-                infer_ratio_drop=0.6,
-                splits=task["splits"],
-                paint_counts = painting_counts
+                infer_ratio_drop=0.6
             )
+            if task["splits"]:
+                results = agrupate_results_by_original_image(results, painting_counts)
+            
+                
 
             print(results)
             results_path = outputs_dir / f"results_{task['name']}.pkl" 
