@@ -4,7 +4,7 @@ import numpy as np
 import cv2
 
 import matplotlib
-matplotlib.use('TkAgg')  # Use TkAgg backend for better compatibility
+# matplotlib.use('TkAgg')  # Use TkAgg backend for better compatibility
 import matplotlib.pyplot as plt
 
 SCRIPT_DIR = Path(__file__).resolve().parent
