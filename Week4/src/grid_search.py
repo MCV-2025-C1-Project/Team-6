@@ -9,6 +9,16 @@ import traceback
 from typing import Dict, Tuple, List, Any
 from pathlib import Path
 import time
+import threading
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import partial
+import traceback
+from typing import Dict, Tuple, List, Any
+from pathlib import Path
+import time
+import threading
+
 
 
 from utils.io_utils import read_images, read_pickle, write_pickle
@@ -83,12 +93,15 @@ def backend_for_method(method: str) -> str:
 
 # Main grid search
 
+# Thread-safe lock for file writing
+log_lock = threading.Lock()
+
+
 def process_single_config(
     cfg: dict,
-    q_images: list,
     ground_truth: list,
     bbdd_dir: Path,
-    query_cache_data: dict,
+    query_cache: dict,
 ) -> dict:
     """
     Process a single configuration (non-inliers baseline).
@@ -103,10 +116,10 @@ def process_single_config(
         splits_flag = bool(cfg.get("splits", False))
         cache_key = (method, splits_flag)
         
-        if cache_key not in query_cache_data:
+        if cache_key not in query_cache:
             raise ValueError(f"Cache key {cache_key} not found for config {name}")
         
-        keys_q, desc_q, paint_counts, q_proc = query_cache_data[cache_key]
+        keys_q, desc_q, paint_counts, q_proc = query_cache[cache_key]
         
         # Ensure BBDD features
         keys_bbdd, desc_bbdd = ensure_bbdd_features(method, bbdd_dir=bbdd_dir)
@@ -161,10 +174,9 @@ def process_single_inliers_config(
     backend: str,
     override: dict,
     defaults: dict,
-    q_images: list,
     ground_truth: list,
     bbdd_dir: Path,
-    query_cache_data: dict,
+    query_cache: dict,
 ) -> dict:
     """
     Process a single SIFT/ORB inliers configuration.
@@ -177,10 +189,10 @@ def process_single_inliers_config(
         
         # Get cached query features
         cache_key = (method, splits_flag)
-        if cache_key not in query_cache_data:
+        if cache_key not in query_cache:
             raise ValueError(f"Cache key {cache_key} not found for {cfg_name}")
         
-        keys_q, desc_q, paint_counts, q_proc = query_cache_data[cache_key]
+        keys_q, desc_q, paint_counts, q_proc = query_cache[cache_key]
         
         # Ensure BBDD features
         keys_bbdd, desc_bbdd = ensure_bbdd_features(method, bbdd_dir=bbdd_dir)
@@ -290,19 +302,20 @@ def compute_query_cache(
 def write_result_to_log(log_path: Path, result: dict):
     """Write a single result to the log file (thread-safe)."""
     try:
-        with open(log_path, "a", encoding="utf-8") as f:
-            if result["success"]:
-                line = (
-                    f"{result['run_tag']} || acc={result['metrics']['accuracy']:.3f}  "
-                    f"prec={result['metrics']['mean_precision']:.3f}  "
-                    f"mAP@2={result['metrics']['mAP@2']:.3f}  time={result['time']:.2f}s"
-                )
-                f.write(line + "\n")
-                if result["mismatches"]:
-                    f.write("MISMATCH EXAMPLES (idx, gt, pred): " + repr(result["mismatches"]) + "\n")
-            else:
-                f.write(f"ERROR in {result['run_tag']}: {result['error']}\n")
-                f.write(f"Traceback:\n{result['traceback']}\n")
+        with log_lock:
+            with open(log_path, "a", encoding="utf-8") as f:
+                if result["success"]:
+                    line = (
+                        f"{result['run_tag']} || acc={result['metrics']['accuracy']:.3f}  "
+                        f"prec={result['metrics']['mean_precision']:.3f}  "
+                        f"mAP@2={result['metrics']['mAP@2']:.3f}  time={result['time']:.2f}s"
+                    )
+                    f.write(line + "\n")
+                    if result["mismatches"]:
+                        f.write("MISMATCH EXAMPLES (idx, gt, pred): " + repr(result["mismatches"]) + "\n")
+                else:
+                    f.write(f"ERROR in {result['run_tag']}: {result['error']}\n")
+                    f.write(f"Traceback:\n{result['traceback']}\n")
     except Exception as e:
         print(f"Failed to write to log: {e}")
 
@@ -316,10 +329,10 @@ def run_grid_search(
     max_workers: int = None,
 ):
     """
-    Parallelized grid search with error handling.
+    Parallelized grid search with error handling using threads.
     
     Args:
-        max_workers: Maximum number of parallel workers (None = CPU count)
+        max_workers: Maximum number of parallel workers (None = CPU count * 5)
     """
     try:
         # Load GT
@@ -388,11 +401,11 @@ def run_grid_search(
         
         print(f"Total configurations to run: {len(tasks)}")
         
-        # Process tasks in parallel
+        # Process tasks in parallel using threads
         completed = 0
         failed = 0
         
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
             future_to_task = {}
             
@@ -405,7 +418,6 @@ def run_grid_search(
                         task["backend"],
                         task["override"],
                         task["defaults"],
-                        q_images,
                         ground_truth,
                         bbdd_dir,
                         query_cache,
@@ -414,7 +426,6 @@ def run_grid_search(
                     future = executor.submit(
                         process_single_config,
                         task["cfg"],
-                        q_images,
                         ground_truth,
                         bbdd_dir,
                         query_cache,
@@ -439,6 +450,7 @@ def run_grid_search(
                     
                 except Exception as e:
                     failed += 1
+                    completed += 1
                     task = future_to_task[future]
                     error_result = {
                         "success": False,
@@ -469,6 +481,7 @@ def run_grid_search(
         except:
             pass
         raise
+
 
 if __name__ == "__main__":
     Q_DIR = SCRIPT_DIR.parent / "qsd1_w4"
