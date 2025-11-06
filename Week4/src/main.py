@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 from pathlib import Path
 from typing import List, Tuple
-
+import cv2 as cv
 from descriptors import compute_descriptors, deserialize_keypoints_list
 from image_split import split_image
 from shadow_removal import shadow_removal
@@ -71,8 +71,15 @@ def process_images(
       - processed_images (list[np.ndarray])
       - painting_counts (list[int]) aligned to original inputs
     """
+
+    noise_removed = []
+    for img in images:
+        noise_removed.append( cv.medianBlur(img, 5)  # Kernel size is 5 (must be odd)
+    )
+    
+
     if split:
-        parts, painting_counts = split_images(images)
+        parts, painting_counts = split_images(noise_removed)
     else:
         parts = [img.copy() for img in images]
         painting_counts = [1] * len(images)

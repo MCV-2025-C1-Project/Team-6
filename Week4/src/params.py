@@ -16,10 +16,10 @@ BEST_DESCRIPTOR_PARAMS = {
     "model": "homography",       
     "ransac_reproj": 3.0,
     # Calibrated unknown logic ---
-    "T_inl": 20,                
-    "T_ratio": 0.30,             
-    "T_peak_ratio": 1.7,        
-    "T_z": 3.5,                  
+    "T_inl": 15,                
+    "T_ratio": 0.35,             
+    "T_peak_ratio": 1.6,        
+    "T_z": 3.2,                  
     "k_stat": 50,              
     # Preprocessing flags for main
     "split": True,              
