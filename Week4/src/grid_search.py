@@ -38,10 +38,42 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 
 def evaluate_strict(predicted: List[List[int]], ground_truth: List[List[int]]) -> Dict[str, float]:
     assert len(predicted) == len(ground_truth)
-    n = len(ground_truth)
-    exact = sum(1 for p, g in zip(predicted, ground_truth) if list(p) == list(g))
-    acc = exact / n if n else 0.0
-    return {"accuracy": acc, "mean_precision": acc, "mAP@2": acc}
+    total_correct = 0
+    total_slots   = 0  
+    total_pred    = 0  
+    total_gt      = 0  
+    exact_matches = 0
+
+    for p, g in zip(predicted, ground_truth):
+        m = max(len(p), len(g))
+        correct = sum(
+            1
+            for i in range(m)
+            if i < len(p) and i < len(g) and p[i] == g[i]
+        )
+
+        total_correct += correct
+        total_slots   += m
+        total_pred    += len(p)
+        total_gt      += len(g)
+        if p == g:
+            exact_matches += 1
+
+    position_accuracy = (total_correct / total_slots) if total_slots else 0.0
+    micro_precision   = (total_correct / total_pred) if total_pred else 1.0
+    micro_recall      = (total_correct / total_gt)   if total_gt   else 1.0
+    if micro_precision + micro_recall > 0:
+        micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall)
+    else:
+        micro_f1 = 0.0
+
+    return {
+        "position_accuracy": position_accuracy,
+        "micro_precision": micro_precision,
+        "micro_recall": micro_recall,
+        "micro_f1": micro_f1,
+        "exact_match_rate": exact_matches / len(predicted)
+    }
 
 
 def diff_examples(predicted, ground_truth, limit=10):
@@ -149,7 +181,7 @@ def process_single_config(
         results = to_py_int_results(results)
         
         metrics = evaluate_strict(results, ground_truth)
-        mism = diff_examples(results, ground_truth, limit=10) if metrics["accuracy"] < 1.0 else []
+        mism = diff_examples(results, ground_truth, limit=10) if metrics["position_accuracy"] < 1.0 else []
         
         return {
             "success": True,
@@ -231,9 +263,8 @@ def process_single_inliers_config(
         )
         dt = time.time() - t0
         results = to_py_int_results(results)
-        
         metrics = evaluate_strict(results, ground_truth)
-        mism = diff_examples(results, ground_truth, limit=10) if metrics["accuracy"] < 1.0 else []
+        mism = diff_examples(results, ground_truth, limit=10) if metrics["position_accuracy"] < 1.0 else []
         
         return {
             "success": True,
@@ -306,9 +337,12 @@ def write_result_to_log(log_path: Path, result: dict):
             with open(log_path, "a", encoding="utf-8") as f:
                 if result["success"]:
                     line = (
-                        f"{result['run_tag']} || acc={result['metrics']['accuracy']:.3f}  "
-                        f"prec={result['metrics']['mean_precision']:.3f}  "
-                        f"mAP@2={result['metrics']['mAP@2']:.3f}  time={result['time']:.2f}s"
+                        f"{result['run_tag']} || acc={result['metrics']['position_accuracy']:.3f}  "
+                        f"prec={result['metrics']['micro_precision']:.3f} "
+                        f"rec={result['metrics']['micro_recall']:.3f}  "
+                        f"f1={result['metrics']['micro_f1']:.3f}  "
+                        f"match_rate={result['metrics']['exact_match_rate']:.3f}  "
+                        f"time={result['time']:.2f}s"
                     )
                     f.write(line + "\n")
                     if result["mismatches"]:
@@ -496,3 +530,4 @@ if __name__ == "__main__":
         log_path=LOGPATH,
         limit_queries=None
     )
+
