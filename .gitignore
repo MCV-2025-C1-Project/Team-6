@@ -6,9 +6,11 @@
 
 # Avoid uploading datasets
 BBDD
-Week1/qsd1_w1
-Week1/descriptors
-Week2/qsd2_w2
+Week1/qs*
+Week2/qs*
+Week3/qs*
+Week4/qs*
+
 
 # Ignore cache files
 __pycache__
