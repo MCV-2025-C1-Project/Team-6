@@ -78,7 +78,7 @@ This section provides a brief description of each script in the `src` folder:
 - **`matching.py`**  
   Script used to find correspondences between the query image and images in the database, implementing ratio test and bidirectional ratio test.
 
--**`scoring.py`**  
+- **`scoring.py`**  
   Evaluate how good the matches between the query and the database images are.
   After obtaining correspondances, assign each database image a score that reflects how strongly it matches the query. Use scoring by length and scoring by inliers.
 
