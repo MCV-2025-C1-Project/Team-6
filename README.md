@@ -1,5 +1,7 @@
 # MCV Module 1 Project
 
+<a href="https://docs.google.com/presentation/d/1MLkC8YCv9SGt4bGrH2qg6LXw_gfLsUtzjOKPDtNkpUo/edit?usp=sharing">Link</a> to final presentation.
+
 ## Team 6 Members
 - Diego Hernández Antón
 - Jordi Ventosa Altimira
